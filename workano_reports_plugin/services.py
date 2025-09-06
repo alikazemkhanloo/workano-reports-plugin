@@ -28,6 +28,16 @@ except Exception:
     _dateutil_parser = None
 from datetime import time as dt_time
 
+try:
+    from zoneinfo import ZoneInfo
+except Exception:
+    try:
+        from dateutil import tz as _dateutil_tz
+        ZoneInfo = None
+    except Exception:
+        _dateutil_tz = None
+        ZoneInfo = None
+
 
 def _parse_iso_datetime(s):
     if not s:
@@ -45,6 +55,76 @@ def _parse_iso_datetime(s):
             return datetime.strptime(s, "%Y-%m-%dT%H:%M:%S%z")
         except Exception:
             return None
+
+
+def _parse_time_hhmm(s):
+    if not s:
+        return None
+    parts = s.split(":")
+    try:
+        h = int(parts[0])
+        m = int(parts[1]) if len(parts) > 1 else 0
+        return dt_time(h, m)
+    except Exception:
+        return None
+
+
+def _is_dt_in_period(dt_obj, period):
+    """Return True if dt_obj (aware datetime) falls into period.
+    period keys: hours_start, hours_end, week_days (list of 1-7), month_days, months, timezone
+    """
+    tzname = period.get('timezone')
+    # convert datetime to period timezone if provided
+    try:
+        if tzname:
+            if ZoneInfo:
+                tz = ZoneInfo(tzname)
+                dt_local = dt_obj.astimezone(tz)
+            elif _dateutil_tz:
+                tz = _dateutil_tz.gettz(tzname)
+                if tz:
+                    dt_local = dt_obj.astimezone(tz)
+                else:
+                    dt_local = dt_obj
+            else:
+                dt_local = dt_obj
+        else:
+            dt_local = dt_obj
+    except Exception:
+        dt_local = dt_obj
+
+    week_day = dt_local.isoweekday()  # 1..7 Monday..Sunday
+    month = dt_local.month
+    month_day = dt_local.day
+
+    months = set(period.get('months') or [])
+    if months and month not in months:
+        return False
+    month_days = set(period.get('month_days') or [])
+    if month_days and month_day not in month_days:
+        return False
+    week_days = set(period.get('week_days') or [])
+    if week_days and week_day not in week_days:
+        return False
+
+    # compare times
+    start_s = period.get('hours_start')
+    end_s = period.get('hours_end')
+    start_t = _parse_time_hhmm(start_s) if isinstance(start_s, str) else _parse_time_hhmm(str(start_s))
+    end_t = _parse_time_hhmm(end_s) if isinstance(end_s, str) else _parse_time_hhmm(str(end_s))
+    if not start_t or not end_t:
+        return False
+
+    cur_t = dt_local.time()
+    # Handle same-day interval (start <= t < end)
+    if start_t <= cur_t < end_t:
+        return True
+    # Handle overnight intervals where end <= start (e.g., 22:00-06:00)
+    if end_t <= start_t:
+        if cur_t >= start_t or cur_t < end_t:
+            return True
+    return False
+
 
 logger = logging.getLogger(__name__)
 UPLOAD_FOLDER = '/var/lib/wazo/sounds/tenants'  # Make sure this directory exists and is writable
@@ -77,11 +157,12 @@ class WorkanoReportsService:
     def _get_work_hours_from_confd(self, config, tenant):
         """
         Create Auth/Confd clients using config and tenant, fetch schedules and
-        return (work_start, work_end) as 'HH:MM' strings from the first schedule item.
-        Returns (None, None) if unable to determine.
+        return a dict with 'open_periods' and 'exceptional_periods' lists extracted from the first schedule item.
+        Each period dict contains: hours_start, hours_end, week_days, month_days, months, timezone
+        Returns empty dict if unable to determine.
         """
         if not config or 'auth' not in config:
-            return (None, None)
+            return {}
 
         # Build auth client
         try:
@@ -136,7 +217,7 @@ class WorkanoReportsService:
                 schedules = None
 
         if not schedules:
-            return (None, None)
+            return {}
 
         # schedules may be an object with 'items' or a list
         if isinstance(schedules, dict) and 'items' in schedules:
@@ -145,70 +226,42 @@ class WorkanoReportsService:
             items = list(schedules)
 
         if not items:
-            return (None, None)
+            return {}
 
         first = items[0]
-        # Try to extract start/end from known confd schedule schema (wazo confd)
-        work_start = None
-        work_end = None
-        # Known wazo-confd schedule shape uses open_periods[*].hours_start/hours_end
+        periods = {'open_periods': [], 'exceptional_periods': []}
         if isinstance(first, dict):
-            open_periods = first.get('open_periods') or []
-            if open_periods:
-                p = open_periods[0]
-                work_start = p.get('hours_start') or p.get('start') or p.get('start_time')
-                work_end = p.get('hours_end') or p.get('end') or p.get('end_time')
-            else:
-                # fallback to exceptional_periods
-                exceptional = first.get('exceptional_periods') or []
-                if exceptional:
-                    p = exceptional[0]
-                    work_start = p.get('hours_start') or p.get('start') or p.get('start_time')
-                    work_end = p.get('hours_end') or p.get('end') or p.get('end_time')
+            tz = first.get('timezone')
+            # open_periods
+            for p in (first.get('open_periods') or []):
+                periods['open_periods'].append({
+                    'hours_start': p.get('hours_start'),
+                    'hours_end': p.get('hours_end'),
+                    'week_days': p.get('week_days') or [],
+                    'month_days': p.get('month_days') or [],
+                    'months': p.get('months') or [],
+                    'timezone': tz,
+                })
+            # exceptional_periods (they are exceptions to open_periods)
+            for p in (first.get('exceptional_periods') or []):
+                periods['exceptional_periods'].append({
+                    'hours_start': p.get('hours_start'),
+                    'hours_end': p.get('hours_end'),
+                    'week_days': p.get('week_days') or [],
+                    'month_days': p.get('month_days') or [],
+                    'months': p.get('months') or [],
+                    'timezone': tz,
+                })
 
-            # additional fallbacks for older/alternative shapes
-            if not (work_start and work_end):
-                for k in ('start', 'start_time', 'time_start', 'from'):
-                    if k in first and isinstance(first[k], str):
-                        work_start = first[k]
-                        break
-                for k in ('end', 'end_time', 'time_end', 'to'):
-                    if k in first and isinstance(first[k], str):
-                        work_end = first[k]
-                        break
-                if not (work_start and work_end):
-                    if 'time_ranges' in first and first['time_ranges']:
-                        tr = first['time_ranges'][0]
-                        work_start = tr.get('start') or tr.get('from') or work_start
-                        work_end = tr.get('end') or tr.get('to') or work_end
-                    elif 'periods' in first and first['periods']:
-                        p = first['periods'][0]
-                        work_start = p.get('start_time') or p.get('start') or work_start
-                        work_end = p.get('end_time') or p.get('end') or work_end
+        # Normalize hours format to ensure HH:MM strings
+        for listname in ('open_periods', 'exceptional_periods'):
+            for per in periods.get(listname, []):
+                if isinstance(per.get('hours_start'), str):
+                    per['hours_start'] = per['hours_start'][:5]
+                if isinstance(per.get('hours_end'), str):
+                    per['hours_end'] = per['hours_end'][:5]
 
-        # Normalize to HH:MM if datetime present
-        def _norm(t):
-            if not t:
-                return None
-            if isinstance(t, str):
-                # accept 'HH:MM' or 'HH:MM:SS' or ISO datetime
-                if 'T' in t or '+' in t or 'Z' in t:
-                    # try isoparse
-                    try:
-                        dt = _parse_iso_datetime(t)
-                        return dt.time().strftime('%H:%M') if dt else None
-                    except Exception:
-                        return t[:5]
-                else:
-                    return t[:5]
-            if isinstance(t, datetime):
-                return t.time().strftime('%H:%M')
-            return None
-
-        work_start = _norm(work_start)
-        work_end = _norm(work_end)
-
-        return (work_start, work_end)
+        return periods
 
     def get_reports(self, start_time=None, end_time=None, work_start='09:00', work_end='17:00', config=None, tenant=None):
         """
@@ -221,13 +274,10 @@ class WorkanoReportsService:
         and split between calls within working hours and outside working hours.
         """
         # override work hours from confd schedule if available
+        schedule_periods = None
         if config and tenant:
             try:
-                ws, we = self._get_work_hours_from_confd(config, tenant)
-                if ws:
-                    work_start = ws
-                if we:
-                    work_end = we
+                schedule_periods = self._get_work_hours_from_confd(config, tenant)
             except Exception:
                 logger.exception('Failed to fetch schedule from confd')
 
@@ -290,11 +340,34 @@ class WorkanoReportsService:
                 # determine if within working hours
                 in_work = False
                 if start_evt:
-                    local_time = start_evt.timetz() if hasattr(start_evt, 'timetz') else start_evt.time()
-                    # Normalize to naive time comparators (hours/min)
-                    st = dt_time(local_time.hour, local_time.minute, local_time.second)
-                    if work_start_t <= st < work_end_t:
-                        in_work = True
+                    # If schedule periods are present, test against them (open_periods minus exceptional_periods)
+                    if schedule_periods:
+                        opens = schedule_periods.get('open_periods', [])
+                        excs = schedule_periods.get('exceptional_periods', [])
+                        in_open = False
+                        for per in opens:
+                            try:
+                                if _is_dt_in_period(start_evt, per):
+                                    in_open = True
+                                    break
+                            except Exception:
+                                continue
+                        in_exception = False
+                        for per in excs:
+                            try:
+                                if _is_dt_in_period(start_evt, per):
+                                    in_exception = True
+                                    break
+                            except Exception:
+                                continue
+                        in_work = in_open and (not in_exception)
+                    else:
+                        # fallback to simple daily time window
+                        local_time = start_evt.timetz() if hasattr(start_evt, 'timetz') else start_evt.time()
+                        # Normalize to naive time comparators (hours/min)
+                        st = dt_time(local_time.hour, local_time.minute, local_time.second)
+                        if work_start_t <= st < work_end_t:
+                            in_work = True
 
                 if in_work:
                     result['total']['working_hours'] += 1

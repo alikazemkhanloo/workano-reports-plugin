@@ -4,6 +4,7 @@ from functools import wraps
 
 # from ari.exceptions import ARIException, ARIHTTPError
 from .services import WorkanoReportsService
+from .schema import ReportsRequestSchema
 from xivo import mallow_helpers, rest_api_helpers
 from xivo.flask.auth_verifier import AuthVerifierFlask
 
@@ -47,14 +48,17 @@ class ReportsResource(ErrorCatchingResource):
     def __init__(self, service):
         super().__init__()
         self.service: WorkanoReportsService = service
+        self.schema = ReportsRequestSchema()
 
     @required_acl('workano.reports.read')
     def get(self):
-        # Query params: start_time, end_time, work_start, work_end
-        start_time = request.args.get('start_time')
-        end_time = request.args.get('end_time')
-        work_start = request.args.get('work_start', None)
-        work_end = request.args.get('work_end', None)
+        # Validate and parse args (use schema directly on request args)
+        validated = self.schema.load(request.args.to_dict())
 
-        result = self.service.get_reports(start_time=start_time, end_time=end_time, work_start=work_start, work_end=work_end)
+        # If auth/config passed via query (not recommended), allow passing confd config
+        confd_config = None
+        tenant = request.args.get('tenant')
+        # In real usage, config should come from plugin dependencies/config store
+
+        result = self.service.get_reports(start_time=validated.get('start_time'), end_time=validated.get('end_time'), work_start=validated.get('work_start'), work_end=validated.get('work_end'), config=confd_config, tenant=tenant)
         return result, 200
