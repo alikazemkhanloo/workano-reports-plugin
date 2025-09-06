@@ -43,12 +43,18 @@ class ErrorCatchingResource(Resource):
         rest_api_helpers.handle_api_exception,
     ] + Resource.method_decorators
 
-class ReportsResource(AuthResource):
+class ReportsResource(ErrorCatchingResource):
     def __init__(self, service):
         super().__init__()
         self.service: WorkanoReportsService = service
 
-    @required_acl('workano.otp.request')
+    @required_acl('workano.reports.read')
     def get(self):
-        
-        return {}, 400
+        # Query params: start_time, end_time, work_start, work_end
+        start_time = request.args.get('start_time')
+        end_time = request.args.get('end_time')
+        work_start = request.args.get('work_start', None)
+        work_end = request.args.get('work_end', None)
+
+        result = self.service.get_reports(start_time=start_time, end_time=end_time, work_start=work_start, work_end=work_end)
+        return result, 200
