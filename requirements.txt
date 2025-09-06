@@ -1,0 +1,12 @@
+git+https://github.com/wazo-platform/wazo-confd-client.git
+git+https://github.com/wazo-platform/wazo-calld-client.git
+git+https://github.com/wazo-platform/wazo-auth-client.git
+git+https://github.com/wazo-platform/wazo-confd.git
+git+https://github.com/wazo-platform/wazo-call-logd.git
+git+https://github.com/wazo-platform/xivo-lib-python.git
+git+https://github.com/wazo-platform/xivo-dao.git
+flask==1.0.2
+sqlalchemy==1.2.18
+SQLAlchemy-Utils==0.32.21
+flask-restful==0.3.7
+marshmallow==3.0.0b14

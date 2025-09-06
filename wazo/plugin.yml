@@ -1,0 +1,7 @@
+name: workano-reports-plugin
+namespace: workano
+version: 1.0.0
+author: Ali Kazemkhanloo
+display_name: Workano OTP Request Plugin
+description: This plugin installs otp
+homepage: https://workano.com
