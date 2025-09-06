@@ -22,6 +22,7 @@ import logging
 
 from sqlalchemy import func
 from xivo_dao.alchemy.cel import CEL
+from xivo_dao.alchemy.schedule import Schedule
 try:
     from dateutil import parser as _dateutil_parser
 except Exception:
@@ -156,137 +157,74 @@ class WorkanoReportsService:
 
     def _get_work_hours_from_confd(self, config, tenant, schedule_id=None):
         """
-        Create Auth/Confd clients using config and tenant, fetch schedules and
-        return a dict with 'open_periods' and 'exceptional_periods' lists extracted from the first schedule item.
-        Each period dict contains: hours_start, hours_end, week_days, month_days, months, timezone
-        Returns empty dict if unable to determine.
+        Read schedules from the database using xivo-dao models instead of calling confd.
+        Returns a dict with 'open_periods' and 'exceptional_periods' lists extracted from the selected schedule.
         """
-        if not config or 'auth' not in config:
-            return {}
-
-        # Build auth client
+        # Use DB session to get schedule
+        session = Session()
         try:
-            auth_client = AuthClient(**config['auth'])
-        except Exception:
-            auth_client = None
-
-        token = None
-        try:
-            if auth_client and hasattr(auth_client, 'token'):
-                # Try to create a long-lived token if API available
+            q = session.query(Schedule)
+            schedule = None
+            if schedule_id is not None:
                 try:
-                    token = auth_client.token.new(expiration=365 * 24 * 60 * 60,
-                                                  username=config['auth'].get('username'),
-                                                  password=config['auth'].get('password'))
-                    if isinstance(token, dict) and 'token' in token:
-                        token = token['token']
+                    sid = int(schedule_id)
                 except Exception:
-                    # fallback: if password is already token
-                    token = config['auth'].get('password')
-            else:
-                token = config['auth'].get('password')
-        except Exception:
-            token = config['auth'].get('password')
+                    sid = None
+                if sid is not None:
+                    schedule = q.filter(Schedule.id == sid).first()
+            if schedule is None:
+                if tenant:
+                    schedule = q.filter(Schedule.tenant_uuid == tenant).order_by(Schedule.id).first()
+                else:
+                    schedule = q.order_by(Schedule.id).first()
 
-        host = config.get('host', '127.0.0.1')
-        port = config.get('port', 443)
-        verify_certificate = config.get('verify_certificate', False)
-        https = config.get('https', True)
+            if not schedule:
+                return {}
 
-        # Create clients
-        try:
-            calld_client = CalldClient(host=host, port=port,
-                                       verify_certificate=verify_certificate, https=https,
-                                       token=token, tenant=tenant)
-        except Exception:
-            calld_client = None
+            tz = schedule.timezone
+            periods = {'open_periods': [], 'exceptional_periods': []}
 
-        try:
-            confd_client = ConfdClient(host=host, port=port,
-                                       verify_certificate=verify_certificate, https=https,
-                                       token=token, tenant=tenant)
-        except Exception:
-            confd_client = None
+            # schedule.open_periods and exceptional_periods are provided by the model
+            for p in getattr(schedule, 'open_periods', []) or []:
+                try:
+                    periods['open_periods'].append({
+                        'hours_start': getattr(p, 'hours_start', None),
+                        'hours_end': getattr(p, 'hours_end', None),
+                        'week_days': getattr(p, 'week_days', []) or [],
+                        'month_days': getattr(p, 'month_days', []) or [],
+                        'months': getattr(p, 'months_list', []) or [],
+                        'timezone': tz,
+                    })
+                except Exception:
+                    continue
 
-        schedules = None
-        if confd_client:
+            for p in getattr(schedule, 'exceptional_periods', []) or []:
+                try:
+                    periods['exceptional_periods'].append({
+                        'hours_start': getattr(p, 'hours_start', None),
+                        'hours_end': getattr(p, 'hours_end', None),
+                        'week_days': getattr(p, 'week_days', []) or [],
+                        'month_days': getattr(p, 'month_days', []) or [],
+                        'months': getattr(p, 'months_list', []) or [],
+                        'timezone': tz,
+                    })
+                except Exception:
+                    continue
+
+            # Normalize hours format to ensure HH:MM strings
+            for listname in ('open_periods', 'exceptional_periods'):
+                for per in periods.get(listname, []):
+                    if isinstance(per.get('hours_start'), str):
+                        per['hours_start'] = per['hours_start'][:5]
+                    if isinstance(per.get('hours_end'), str):
+                        per['hours_end'] = per['hours_end'][:5]
+
+            return periods
+        finally:
             try:
-                schedules = confd_client.schedules.list()
+                session.close()
             except Exception:
-                logger.exception('Failed to fetch schedules via confd_client.schedules.list()')
-                schedules = None
-
-        if not schedules:
-            return {}
-
-        # schedules may be an object with 'items' or a list
-        if isinstance(schedules, dict) and 'items' in schedules:
-            items = schedules['items']
-        else:
-            try:
-                items = list(schedules)
-            except Exception:
-                items = []
-
-        if not items:
-            return {}
-
-        # If schedule_id provided, select the schedule with matching id from the list; otherwise pick the first
-        first = None
-        if schedule_id is not None:
-            try:
-                sid = int(schedule_id)
-            except Exception:
-                sid = None
-
-            if sid is not None:
-                for itm in items:
-                    iid = None
-                    if isinstance(itm, dict):
-                        iid = itm.get('id')
-                    else:
-                        iid = getattr(itm, 'id', None)
-
-                    if iid == sid:
-                        first = itm
-                        break
-        logger.debug('>>>first',first)
-        if first is None:
-            first = items[0]
-
-        periods = {'open_periods': [], 'exceptional_periods': []}
-        if isinstance(first, dict):
-            tz = first.get('timezone')
-            # open_periods
-            for p in (first.get('open_periods') or []):
-                periods['open_periods'].append({
-                    'hours_start': p.get('hours_start'),
-                    'hours_end': p.get('hours_end'),
-                    'week_days': p.get('week_days') or [],
-                    'month_days': p.get('month_days') or [],
-                    'months': p.get('months') or [],
-                    'timezone': tz,
-                })
-            # exceptional_periods (they are exceptions to open_periods)
-            for p in (first.get('exceptional_periods') or []):
-                periods['exceptional_periods'].append({
-                    'hours_start': p.get('hours_start'),
-                    'hours_end': p.get('hours_end'),
-                    'week_days': p.get('week_days') or [],
-                    'month_days': p.get('month_days') or [],
-                    'months': p.get('months') or [],
-                    'timezone': tz,
-                })
-
-        # Normalize hours format to ensure HH:MM strings
-        for listname in ('open_periods', 'exceptional_periods'):
-            for per in periods.get(listname, []):
-                if isinstance(per.get('hours_start'), str):
-                    per['hours_start'] = per['hours_start'][:5]
-                if isinstance(per.get('hours_end'), str):
-                    per['hours_end'] = per['hours_end'][:5]
-
-        return periods
+                pass
 
     def get_reports(self, start_time=None, end_time=None, work_start='09:00', work_end='17:00', config=None, tenant=None, schedule_id=None):
         """
