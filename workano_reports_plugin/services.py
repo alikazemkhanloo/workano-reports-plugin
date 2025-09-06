@@ -250,7 +250,7 @@ class WorkanoReportsService:
                     if iid == sid:
                         first = itm
                         break
-
+        print('>>>first',first)
         if first is None:
             first = items[0]
 
