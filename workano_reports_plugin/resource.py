@@ -59,7 +59,7 @@ class ReportsResource(ErrorCatchingResource):
 
         # If auth/config passed via query (not recommended), allow passing confd config
         confd_config = self.config
-        tenant = request.args.get('tenant')
+        tenant = request.headers.get('Wazo-Tenant')
         schedule_id = validated.get('schedule_id')
          # In real usage, config should come from plugin dependencies/config store
 
