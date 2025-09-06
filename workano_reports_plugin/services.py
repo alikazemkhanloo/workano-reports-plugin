@@ -298,6 +298,7 @@ class WorkanoReportsService:
         Returns a dict with totals and breakdown by direction (inbound/outbound/internal)
         and split between calls within working hours and outside working hours.
         """
+        print('getting report')
         # override work hours from confd schedule if available
         schedule_periods = None
         if config and tenant:
@@ -387,6 +388,7 @@ class WorkanoReportsService:
                                 continue
                         in_work = in_open and (not in_exception)
                     else:
+                        print('fallback')
                         # fallback to simple daily time window
                         local_time = start_evt.timetz() if hasattr(start_evt, 'timetz') else start_evt.time()
                         # Normalize to naive time comparators (hours/min)
