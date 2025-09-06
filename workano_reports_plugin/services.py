@@ -13,7 +13,6 @@ from wazo_auth_client import Client as AuthClient
 from wazo_confd_client import Client as ConfdClient
 from xivo_dao.helpers.db_manager import Session
 from xivo_dao.helpers.exception import NotFoundError
-from . import dao
 import logging
 # from .notifier import build_campaign_notifier
 # from .validator import build_campaign_validator
