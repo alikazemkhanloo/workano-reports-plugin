@@ -154,7 +154,7 @@ class WorkanoReportsService:
                 return dt_time(int(parts[0]), int(parts[1]))
         return None
 
-    def _get_work_hours_from_confd(self, config, tenant):
+    def _get_work_hours_from_confd(self, config, tenant, schedule_id=None):
         """
         Create Auth/Confd clients using config and tenant, fetch schedules and
         return a dict with 'open_periods' and 'exceptional_periods' lists extracted from the first schedule item.
@@ -223,12 +223,37 @@ class WorkanoReportsService:
         if isinstance(schedules, dict) and 'items' in schedules:
             items = schedules['items']
         else:
-            items = list(schedules)
+            try:
+                items = list(schedules)
+            except Exception:
+                items = []
 
         if not items:
             return {}
 
-        first = items[0]
+        # If schedule_id provided, select the schedule with matching id from the list; otherwise pick the first
+        first = None
+        if schedule_id is not None:
+            try:
+                sid = int(schedule_id)
+            except Exception:
+                sid = None
+
+            if sid is not None:
+                for itm in items:
+                    iid = None
+                    if isinstance(itm, dict):
+                        iid = itm.get('id')
+                    else:
+                        iid = getattr(itm, 'id', None)
+
+                    if iid == sid:
+                        first = itm
+                        break
+
+        if first is None:
+            first = items[0]
+
         periods = {'open_periods': [], 'exceptional_periods': []}
         if isinstance(first, dict):
             tz = first.get('timezone')
@@ -263,7 +288,7 @@ class WorkanoReportsService:
 
         return periods
 
-    def get_reports(self, start_time=None, end_time=None, work_start='09:00', work_end='17:00', config=None, tenant=None):
+    def get_reports(self, start_time=None, end_time=None, work_start='09:00', work_end='17:00', config=None, tenant=None, schedule_id=None):
         """
         Generate reports based on CEL table.
         - start_time / end_time: ISO8601 string or datetime; if None, no bound.
@@ -277,7 +302,7 @@ class WorkanoReportsService:
         schedule_periods = None
         if config and tenant:
             try:
-                schedule_periods = self._get_work_hours_from_confd(config, tenant)
+                schedule_periods = self._get_work_hours_from_confd(config, tenant, schedule_id=schedule_id)
             except Exception:
                 logger.exception('Failed to fetch schedule from confd')
 

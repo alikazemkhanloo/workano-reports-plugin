@@ -7,6 +7,7 @@ class ReportsRequestSchema(BaseSchema):
     # External query param names: 'from' and 'until' but keep internal keys start_time/end_time
     start_time = fields.String(data_key='from', allow_none=True)
     end_time = fields.String(data_key='until', allow_none=True)
+    schedule_id = fields.Integer(allow_none=True)
     work_start = fields.String(allow_none=True, validate=Regexp(r'^\d{2}:\d{2}$'))
     work_end = fields.String(allow_none=True, validate=Regexp(r'^\d{2}:\d{2}$'))
 

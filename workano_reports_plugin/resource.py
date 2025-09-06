@@ -58,7 +58,8 @@ class ReportsResource(ErrorCatchingResource):
         # If auth/config passed via query (not recommended), allow passing confd config
         confd_config = None
         tenant = request.args.get('tenant')
-        # In real usage, config should come from plugin dependencies/config store
+        schedule_id = validated.get('schedule_id')
+         # In real usage, config should come from plugin dependencies/config store
 
-        result = self.service.get_reports(start_time=validated.get('start_time'), end_time=validated.get('end_time'), work_start=validated.get('work_start'), work_end=validated.get('work_end'), config=confd_config, tenant=tenant)
+        result = self.service.get_reports(start_time=validated.get('start_time'), end_time=validated.get('end_time'), work_start=validated.get('work_start'), work_end=validated.get('work_end'), config=confd_config, tenant=tenant, schedule_id=schedule_id)
         return result, 200
