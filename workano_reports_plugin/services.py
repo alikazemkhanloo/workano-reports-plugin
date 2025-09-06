@@ -306,7 +306,7 @@ class WorkanoReportsService:
                 schedule_periods = self._get_work_hours_from_confd(config, tenant, schedule_id=schedule_id)
             except Exception:
                 logger.exception('Failed to fetch schedule from confd')
-
+        print('schedule_periods',schedule_periods)
         # parse datetimes
         if isinstance(start_time, str):
             start_time = _parse_iso_datetime(start_time)
