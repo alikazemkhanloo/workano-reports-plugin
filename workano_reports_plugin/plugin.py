@@ -8,11 +8,11 @@ class Plugin:
         logger.info('otp request plugin loading')
         api = dependencies['api']
         dao = dependencies['dao']
-
+        config = dependencies['config']
         otp_request_service = build_otp_request_service(dao)
 
         api.add_resource(
             ReportsResource,
             '/reports',
-            resource_class_args=(otp_request_service,)
+            resource_class_args=(otp_request_service, config)
         )

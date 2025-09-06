@@ -45,10 +45,11 @@ class ErrorCatchingResource(Resource):
     ] + Resource.method_decorators
 
 class ReportsResource(ErrorCatchingResource):
-    def __init__(self, service):
+    def __init__(self, service, config):
         super().__init__()
         self.service: WorkanoReportsService = service
         self.schema = ReportsRequestSchema()
+        self.config = config
 
     @required_acl('workano.reports.read')
     def get(self):
@@ -57,7 +58,7 @@ class ReportsResource(ErrorCatchingResource):
         validated = self.schema.load(request.args.to_dict())
 
         # If auth/config passed via query (not recommended), allow passing confd config
-        confd_config = None
+        confd_config = self.config
         tenant = request.args.get('tenant')
         schedule_id = validated.get('schedule_id')
          # In real usage, config should come from plugin dependencies/config store
