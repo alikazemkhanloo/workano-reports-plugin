@@ -52,6 +52,7 @@ class ReportsResource(ErrorCatchingResource):
 
     @required_acl('workano.reports.read')
     def get(self):
+        print('>second')
         # Validate and parse args (use schema directly on request args)
         validated = self.schema.load(request.args.to_dict())
 
