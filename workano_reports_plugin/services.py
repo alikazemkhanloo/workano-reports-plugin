@@ -277,6 +277,7 @@ class WorkanoReportsService:
                         'channame': cel.channame,
                         'did_cid_dnid': None,
                         'did_channame': None,
+                        'outcall_trunk': None,
                     }
                     calls[lid] = entry
                 else:
@@ -299,6 +300,23 @@ class WorkanoReportsService:
                         # prefer cid_dnid as trunk identifier
                         entry['did_cid_dnid'] = cel.cid_dnid
                         entry['did_channame'] = cel.channame
+                except Exception:
+                    pass
+
+                # capture outcall trunk when this row is an outgoing Dial (context=outcall, exten=dial)
+                try:
+                    if getattr(cel, 'context', None) == 'outcall' and getattr(cel, 'exten', None) == 'dial':
+                        appdata = getattr(cel, 'appdata', '') or ''
+                        # find first occurrence of @TRUNK in appdata (e.g. PJSIP/09104719336@AT2191015457)
+                        m = re.search(r'@([A-Za-z0-9_\-]+)', appdata)
+                        if m:
+                            entry['outcall_trunk'] = m.group(1)
+                        else:
+                            # fallback: try to extract from channame
+                            chan = getattr(cel, 'channame', '') or ''
+                            m2 = re.match(r'^[^/]+/([^\-;:@]+)', chan)
+                            if m2:
+                                entry['outcall_trunk'] = m2.group(1)
                 except Exception:
                     pass
 
