@@ -258,65 +258,87 @@ class WorkanoReportsService:
 
         session = Session()
         try:
-            # Use SQL aggregation to group CEL rows by call identifier (linkedid, fallback uniqueid or id)
-            call_key = func.coalesce(CEL.linkedid, CEL.uniqueid, func.cast(CEL.id, String))
-            # Aggregate one representative row per call_key. Also capture any 'did' row's cid_dnid or channame
-            q = session.query(
-                call_key.label('call_key'),
-                func.min(CEL.eventtime).label('first_event'),
-                func.max(case([(CEL.eventtype.in_(['XIVO_INCALL','xivo_incall']), 1)], else_=0)).label('has_in'),
-                func.max(case([(CEL.eventtype.in_(['XIVO_OUTCALL','xivo_outcall']), 1)], else_=0)).label('has_out'),
-                func.max(CEL.channame).label('channame'),
-                # did_channame: channame from any CEL row where context='did' and cid_dnid is present
-                func.max(case([(((CEL.context == 'did') & (CEL.cid_dnid != '')), CEL.channame)], else_=None)).label('did_channame'),
-                # did_cid_dnid: cid_dnid from any CEL row where context='did' and cid_dnid is present
-                func.max(case([(((CEL.context == 'did') & (CEL.cid_dnid != '')), CEL.cid_dnid)], else_=None)).label('did_cid_dnid'),
-            )
+            # Fallback to scanning all CEL rows and grouping in Python (groupby produced incorrect trunk attribution).
+            q = session.query(CEL)
             if start_time:
                 q = q.filter(CEL.eventtime >= start_time)
             if end_time:
                 q = q.filter(CEL.eventtime <= end_time)
-            q = q.group_by(call_key)
 
-            # initialize counters
+            # build calls dict keyed by linkedid/uniqueid/id
+            calls = {}
+            for cel in q:
+                lid = cel.linkedid or cel.uniqueid or str(cel.id)
+                entry = calls.get(lid)
+                if not entry:
+                    entry = {
+                        'first_event': cel.eventtime,
+                        'eventtypes': set(),
+                        'channame': cel.channame,
+                        'did_cid_dnid': None,
+                        'did_channame': None,
+                    }
+                    calls[lid] = entry
+                else:
+                    # update earliest event
+                    if cel.eventtime and entry.get('first_event'):
+                        if cel.eventtime < entry['first_event']:
+                            entry['first_event'] = cel.eventtime
+                    elif cel.eventtime:
+                        entry['first_event'] = cel.eventtime
+                    # keep a representative channame when not set
+                    if not entry.get('channame') and getattr(cel, 'channame', None):
+                        entry['channame'] = cel.channame
+
+                if cel.eventtype:
+                    entry['eventtypes'].add(cel.eventtype)
+
+                # capture did-specific info when present
+                try:
+                    if getattr(cel, 'context', None) == 'did' and getattr(cel, 'cid_dnid', None):
+                        # prefer cid_dnid as trunk identifier
+                        entry['did_cid_dnid'] = cel.cid_dnid
+                        entry['did_channame'] = cel.channame
+                except Exception:
+                    pass
+
+            # initialize counters (same shape as before)
             result = {
-                'total': {'working_hours': 0, 'outside_working_hours': 0, 'total': 0},
+                'total': {'working_hours': 0, 'outside_working_hours': 0, 'total': 0, 'by_trunk': {}},
                 'by_direction': {
-                    'inbound': {'working_hours': 0, 'outside_working_hours': 0, 'total': 0},
-                    'outbound': {'working_hours': 0, 'outside_working_hours': 0, 'total': 0},
-                    'internal': {'working_hours': 0, 'outside_working_hours': 0, 'total': 0},
+                    'inbound': {'working_hours': 0, 'outside_working_hours': 0, 'total': 0, 'by_trunk': {}},
+                    'outbound': {'working_hours': 0, 'outside_working_hours': 0, 'total': 0, 'by_trunk': {}},
+                    'internal': {'working_hours': 0, 'outside_working_hours': 0, 'total': 0, 'by_trunk': {}},
                 },
                 'by_trunk': {},
             }
 
-            # Iterate grouped rows (one per call) rather than every CEL row
-            for row in q:
-                start_evt = row.first_event
-                has_in = bool(row.has_in)
-                has_out = bool(row.has_out)
+            for lid, info in calls.items():
+                start_evt = info.get('first_event')
+                eventtypes = info.get('eventtypes', set())
 
-                if has_in:
+                # determine direction
+                if 'XIVO_INCALL' in eventtypes or 'xivo_incall' in eventtypes:
                     direction = 'inbound'
-                elif has_out:
+                elif 'XIVO_OUTCALL' in eventtypes or 'xivo_outcall' in eventtypes:
                     direction = 'outbound'
                 else:
                     direction = 'internal'
 
-                # derive trunk: prefer cid_dnid from a 'did' CEL row, else try did_channame, else general channame
+                # derive trunk: prefer did_cid_dnid, else try did_channame, else channame
                 trunk = None
                 try:
-                    did_cid = getattr(row, 'did_cid_dnid', None)
-                    if did_cid:
-                        trunk = str(did_cid)
+                    if info.get('did_cid_dnid'):
+                        trunk = str(info['did_cid_dnid'])
                     else:
-                        chan = (getattr(row, 'did_channame', None) or getattr(row, 'channame', '') or '')
+                        chan = info.get('did_channame') or info.get('channame') or ''
                         m = re.match(r'^[^/]+/([^\-;:@]+)', chan)
                         if m:
                             trunk = m.group(1)
                 except Exception:
                     trunk = None
 
-                # ensure trunk entry exists
+                # ensure trunk containers
                 if trunk and trunk not in result['by_trunk']:
                     result['by_trunk'][trunk] = {
                         'total': {'working_hours': 0, 'outside_working_hours': 0, 'total': 0},
@@ -326,22 +348,14 @@ class WorkanoReportsService:
                             'internal': {'working_hours': 0, 'outside_working_hours': 0, 'total': 0},
                         },
                     }
-                # ensure per-trunk containers under top-level totals and per-direction maps
-                if trunk:
-                    if 'by_trunk' not in result['total']:
-                        result['total']['by_trunk'] = {}
-                    if trunk not in result['total']['by_trunk']:
-                        result['total']['by_trunk'][trunk] = {'working_hours': 0, 'outside_working_hours': 0, 'total': 0}
-                    for d in result['by_direction'].keys():
-                        if 'by_trunk' not in result['by_direction'][d]:
-                            result['by_direction'][d]['by_trunk'] = {}
-                        if trunk not in result['by_direction'][d]['by_trunk']:
-                            result['by_direction'][d]['by_trunk'][trunk] = {'working_hours': 0, 'outside_working_hours': 0, 'total': 0}
+                if trunk and trunk not in result['total']['by_trunk']:
+                    result['total']['by_trunk'][trunk] = {'working_hours': 0, 'outside_working_hours': 0, 'total': 0}
+                if trunk and trunk not in result['by_direction'][direction]['by_trunk']:
+                    result['by_direction'][direction]['by_trunk'][trunk] = {'working_hours': 0, 'outside_working_hours': 0, 'total': 0}
 
                 # determine if within working hours
                 in_work = False
                 if start_evt:
-                    # If schedule periods are present, test against them (open_periods minus exceptional_periods)
                     if schedule_periods:
                         opens = schedule_periods.get('open_periods', [])
                         excs = schedule_periods.get('exceptional_periods', [])
@@ -363,25 +377,30 @@ class WorkanoReportsService:
                                 continue
                         in_work = in_open and (not in_exception)
                     else:
-                        # No schedule periods: treat as outside working hours
                         in_work = False
 
                 if in_work:
                     result['total']['working_hours'] += 1
                     result['by_direction'][direction]['working_hours'] += 1
                     if trunk:
+                        result['total']['by_trunk'][trunk]['working_hours'] += 1
+                        result['by_direction'][direction]['by_trunk'][trunk]['working_hours'] += 1
                         result['by_trunk'][trunk]['total']['working_hours'] += 1
                         result['by_trunk'][trunk]['by_direction'][direction]['working_hours'] += 1
                 else:
                     result['total']['outside_working_hours'] += 1
                     result['by_direction'][direction]['outside_working_hours'] += 1
                     if trunk:
+                        result['total']['by_trunk'][trunk]['outside_working_hours'] += 1
+                        result['by_direction'][direction]['by_trunk'][trunk]['outside_working_hours'] += 1
                         result['by_trunk'][trunk]['total']['outside_working_hours'] += 1
                         result['by_trunk'][trunk]['by_direction'][direction]['outside_working_hours'] += 1
 
                 result['total']['total'] += 1
                 result['by_direction'][direction]['total'] += 1
                 if trunk:
+                    result['total']['by_trunk'][trunk]['total'] += 1
+                    result['by_direction'][direction]['by_trunk'][trunk]['total'] += 1
                     result['by_trunk'][trunk]['total']['total'] += 1
                     result['by_trunk'][trunk]['by_direction'][direction]['total'] += 1
 
