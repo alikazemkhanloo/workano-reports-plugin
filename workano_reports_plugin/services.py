@@ -23,6 +23,8 @@ import logging
 from sqlalchemy import func, case, cast, String
 from xivo_dao.alchemy.cel import CEL
 from xivo_dao.alchemy.schedule import Schedule
+from xivo_dao.alchemy.trunkfeatures import TrunkFeatures
+from xivo_dao.alchemy.endpoint_sip import EndpointSIP
 try:
     from dateutil import parser as _dateutil_parser
 except Exception:
@@ -226,6 +228,43 @@ class WorkanoReportsService:
             except Exception:
                 pass
 
+    # New helper: resolve trunk name -> number using TrunkFeatures / EndpointSIP
+    def _find_number_from_trunk_db(self, session, selected_trunk_name):
+        """Return the contact number (from aor_section_options contact) for a trunk name using DB models.
+        Returns None if not found.
+        """
+        try:
+            if not selected_trunk_name:
+                return None
+
+            # Try to find TrunkFeatures by its computed name (hybrid property)
+            t = session.query(TrunkFeatures).filter(TrunkFeatures.name == selected_trunk_name).first()
+            if not t:
+                # Fallback: find EndpointSIP by name and then its trunk
+                ep = session.query(EndpointSIP).filter(EndpointSIP.name == selected_trunk_name).first()
+                if ep:
+                    t = session.query(TrunkFeatures).filter(TrunkFeatures.endpoint_sip_uuid == ep.uuid).first()
+
+            if not t:
+                return None
+
+            ep_full = getattr(t, 'endpoint_sip', None)
+            if not ep_full:
+                return None
+
+            # aor_section_options is a list of [key, value] pairs; find 'contact'
+            for opt in getattr(ep_full, 'aor_section_options', []) or []:
+                try:
+                    if isinstance(opt, (list, tuple)) and len(opt) >= 2 and opt[0] == 'contact':
+                        re_match = re.match(r'sip:(.*)@', opt[1])
+                        if re_match:
+                            return re_match.group(1)
+                except Exception:
+                    continue
+            return None
+        except Exception:
+            return None
+
     def get_reports(self, params, config=None, tenant=None):
         """
         Generate reports based on CEL table.
@@ -278,6 +317,7 @@ class WorkanoReportsService:
                         'did_cid_dnid': None,
                         'did_channame': None,
                         'outcall_trunk': None,
+                        'outcall_trunk_number': None,
                     }
                     calls[lid] = entry
                 else:
@@ -303,20 +343,34 @@ class WorkanoReportsService:
                 except Exception:
                     pass
 
-                # capture outcall trunk when this row is an outgoing Dial (context=outcall, exten=dial)
+                # capture outcall trunk
                 try:
-                    if getattr(cel, 'context', None) == 'outcall' and getattr(cel, 'exten', None) == 'dial':
+                    # Prefer APP_START eventtype for outcall trunk identification when available
+                    if getattr(cel, 'eventtype', None) == 'APP_START':
                         appdata = getattr(cel, 'appdata', '') or ''
-                        # find first occurrence of @TRUNK in appdata (e.g. PJSIP/09104719336@AT2191015457)
                         m = re.search(r'@([A-Za-z0-9_\-]+)', appdata)
                         if m:
-                            entry['outcall_trunk'] = m.group(1)
+                            trunk_name = m.group(1)
+                            entry['outcall_trunk'] = trunk_name
+                            # resolve number from DB using trunk/endpoint tables
+                            try:
+                                num = self._find_number_from_trunk_db(session, trunk_name)
+                                if num:
+                                    entry['outcall_trunk_number'] = num
+                            except Exception:
+                                pass
+                    # preserve previous behaviour as fallback: outgoing Dial row
+                    elif getattr(cel, 'context', None) == 'outcall' and getattr(cel, 'exten', None) == 'dial':
+                        appdata = getattr(cel, 'appdata', '') or ''
+                        m = re.search(r'@([A-Za-z0-9_\-]+)', appdata)
+                        if m:
+                            entry['outcall_trunk'] = entry.get('outcall_trunk') or m.group(1)
                         else:
                             # fallback: try to extract from channame
                             chan = getattr(cel, 'channame', '') or ''
                             m2 = re.match(r'^[^/]+/([^\-;:@]+)', chan)
                             if m2:
-                                entry['outcall_trunk'] = m2.group(1)
+                                entry['outcall_trunk'] = entry.get('outcall_trunk') or m2.group(1)
                 except Exception:
                     pass
 
@@ -349,10 +403,17 @@ class WorkanoReportsService:
                     if info.get('did_cid_dnid'):
                         trunk = str(info['did_cid_dnid'])
                     else:
-                        chan = info.get('did_channame') or info.get('channame') or ''
-                        m = re.match(r'^[^/]+/([^\-;:@]+)', chan)
-                        if m:
-                            trunk = m.group(1)
+                        # For outbound calls prefer resolved trunk number from DB if available
+                        if direction == 'outbound' and info.get('outcall_trunk_number'):
+                            trunk = str(info.get('outcall_trunk_number'))
+                        else:
+                            chan = info.get('did_channame') or info.get('channame') or ''
+                            m = re.match(r'^[^/]+/([^\-;:@]+)', chan)
+                            if m:
+                                trunk = m.group(1)
+                            # if still no trunk and outbound, use raw outcall_trunk identifier
+                            if not trunk and direction == 'outbound' and info.get('outcall_trunk'):
+                                trunk = str(info.get('outcall_trunk'))
                 except Exception:
                     trunk = None
 
