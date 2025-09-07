@@ -20,7 +20,7 @@ import logging
 # from ..campaign_contact_call.services import build_campaign_contact_call_service
 # from ..contact_list.services import build_contact_list_service
 
-from sqlalchemy import func
+from sqlalchemy import func, case, cast, String
 from xivo_dao.alchemy.cel import CEL
 from xivo_dao.alchemy.schedule import Schedule
 try:
@@ -235,12 +235,12 @@ class WorkanoReportsService:
         Returns a dict with totals and breakdown by direction (inbound/outbound/internal)
         and split between calls within working hours and outside working hours.
         """
-        # override work hours from confd schedule if available
-        schedule_periods = None
         start_time=params.get('start_time')
         end_time=params.get('end_time')
         schedule_id=params.get('schedule_id')
-        
+        # override work hours from confd schedule if available
+        schedule_periods = None
+
         if config and tenant:
             try:
                 schedule_periods = self._get_work_hours_from_confd(config, tenant, schedule_id=schedule_id)
@@ -258,29 +258,19 @@ class WorkanoReportsService:
 
         session = Session()
         try:
-            q = session.query(CEL)
+            # Use SQL aggregation to group CEL rows by call identifier (linkedid, fallback uniqueid or id)
+            call_key = func.coalesce(CEL.linkedid, CEL.uniqueid, func.cast(CEL.id, String))
+            q = session.query(
+                call_key.label('call_key'),
+                func.min(CEL.eventtime).label('first_event'),
+                func.max(case([(CEL.eventtype.in_(['XIVO_INCALL','xivo_incall']), 1)], else_=0)).label('has_in'),
+                func.max(case([(CEL.eventtype.in_(['XIVO_OUTCALL','xivo_outcall']), 1)], else_=0)).label('has_out'),
+            )
             if start_time:
                 q = q.filter(CEL.eventtime >= start_time)
             if end_time:
                 q = q.filter(CEL.eventtime <= end_time)
-
-            # iterate cels and group by linkedid (fallback to uniqueid)
-            calls = {}
-            for cel in q:
-                lid = cel.linkedid or cel.uniqueid or str(cel.id)
-                entry = calls.get(lid)
-                if not entry:
-                    entry = {
-                        'first_event': cel.eventtime,
-                        'eventtypes': set(),
-                    }
-                    calls[lid] = entry
-                else:
-                    if cel.eventtime and entry['first_event']:
-                        if cel.eventtime < entry['first_event']:
-                            entry['first_event'] = cel.eventtime
-                if cel.eventtype:
-                    entry['eventtypes'].add(cel.eventtype)
+            q = q.group_by(call_key)
 
             # initialize counters
             result = {
@@ -292,13 +282,15 @@ class WorkanoReportsService:
                 },
             }
 
-            for lid, info in calls.items():
-                start_evt = info.get('first_event')
-                eventtypes = info.get('eventtypes', set())
-                # determine direction
-                if 'XIVO_INCALL' in eventtypes or 'xivo_incall' in eventtypes:
+            # Iterate grouped rows (one per call) rather than every CEL row
+            for row in q:
+                start_evt = row.first_event
+                has_in = bool(row.has_in)
+                has_out = bool(row.has_out)
+
+                if has_in:
                     direction = 'inbound'
-                elif 'XIVO_OUTCALL' in eventtypes or 'xivo_outcall' in eventtypes:
+                elif has_out:
                     direction = 'outbound'
                 else:
                     direction = 'internal'
