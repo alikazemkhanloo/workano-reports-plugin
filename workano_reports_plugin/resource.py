@@ -53,14 +53,8 @@ class ReportsResource(ErrorCatchingResource):
 
     @required_acl('workano.reports.read')
     def get(self):
-        # Validate and parse args (use schema directly on request args)
-        validated = self.schema.load(request.args.to_dict())
+        params = self.schema.load(request.args)
 
-        # If auth/config passed via query (not recommended), allow passing confd config
-        confd_config = self.config
-        tenant = request.headers.get('Wazo-Tenant')
-        schedule_id = validated.get('schedule_id')
-         # In real usage, config should come from plugin dependencies/config store
-
-        result = self.service.get_reports(start_time=validated.get('start_time'), end_time=validated.get('end_time'), work_start=validated.get('work_start'), work_end=validated.get('work_end'), config=confd_config, tenant=tenant, schedule_id=schedule_id)
+        tenant = request.args.get('tenant')
+        result = self.service.get_reports(params, config=self.config, tenant=tenant)
         return result, 200

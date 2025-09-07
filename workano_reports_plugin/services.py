@@ -226,31 +226,35 @@ class WorkanoReportsService:
             except Exception:
                 pass
 
-    def get_reports(self, start_time=None, end_time=None, work_start='09:00', work_end='17:00', config=None, tenant=None, schedule_id=None):
+    def get_reports(self, params, config=None, tenant=None):
         """
         Generate reports based on CEL table.
         - start_time / end_time: ISO8601 string or datetime; if None, no bound.
-        - work_start / work_end: 'HH:MM' strings defining working hours (inclusive start, exclusive end).
-        - config, tenant: if provided, will attempt to fetch schedules from confd and use the first schedule item to set work_start/work_end.
+        - config, tenant: if provided, will attempt to fetch schedules from DB and use the selected schedule to determine working periods.
 
         Returns a dict with totals and breakdown by direction (inbound/outbound/internal)
         and split between calls within working hours and outside working hours.
         """
         # override work hours from confd schedule if available
         schedule_periods = None
+        start_time=params.get('start_time')
+        end_time=params.get('end_time')
+        schedule_id=params.get('schedule_id')
+        
         if config and tenant:
             try:
                 schedule_periods = self._get_work_hours_from_confd(config, tenant, schedule_id=schedule_id)
             except Exception:
                 logger.exception('Failed to fetch schedule from confd')
+
         # parse datetimes
         if isinstance(start_time, str):
             start_time = _parse_iso_datetime(start_time)
         if isinstance(end_time, str):
             end_time = _parse_iso_datetime(end_time)
 
-        work_start_t = self._parse_time(work_start) or dt_time(9, 0)
-        work_end_t = self._parse_time(work_end) or dt_time(17, 0)
+        # No simple work_start/work_end fallback: when no schedule periods are available,
+        # calls will be considered outside working hours.
 
         session = Session()
         try:
@@ -324,12 +328,8 @@ class WorkanoReportsService:
                                 continue
                         in_work = in_open and (not in_exception)
                     else:
-                        # fallback to simple daily time window
-                        local_time = start_evt.timetz() if hasattr(start_evt, 'timetz') else start_evt.time()
-                        # Normalize to naive time comparators (hours/min)
-                        st = dt_time(local_time.hour, local_time.minute, local_time.second)
-                        if work_start_t <= st < work_end_t:
-                            in_work = True
+                        # No schedule periods: treat as outside working hours
+                        in_work = False
 
                 if in_work:
                     result['total']['working_hours'] += 1
