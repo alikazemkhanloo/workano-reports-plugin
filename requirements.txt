@@ -10,3 +10,4 @@ sqlalchemy==1.2.18
 SQLAlchemy-Utils==0.32.21
 flask-restful==0.3.7
 marshmallow==3.0.0b14
+dateutil
