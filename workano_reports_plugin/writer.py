@@ -7,6 +7,7 @@ from workano_reports_plugin.models import ReportsCallLog
 
 @daosession
 def delete_from_list(session, call_log_ids):
+    print ('>delete_from_list:',call_log_ids)
     query = session.query(ReportsCallLog)
     query = query.filter(ReportsCallLog.id.in_(call_log_ids))
     query.delete(synchronize_session=False)
@@ -14,6 +15,7 @@ def delete_from_list(session, call_log_ids):
 
 @daosession
 def create_from_list(session, call_logs):
+    print('>create_from_list', call_log)
     if not call_logs:
         return
     for call_log in call_logs:
