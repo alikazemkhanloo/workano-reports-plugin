@@ -11,7 +11,7 @@ def delete_from_list(session, call_log_ids):
     query = session.query(ReportsCallLog)
     query = query.filter(ReportsCallLog.id.in_(call_log_ids))
     query.delete(synchronize_session=False)
-    query.commit()
+    session.commit()
 
 @daosession
 def create_from_list(session, call_logs):
