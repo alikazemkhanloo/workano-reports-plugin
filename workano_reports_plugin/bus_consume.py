@@ -16,17 +16,16 @@ logger = logging.getLogger(__name__)
 class ReportsBusEventHandler:
     def __init__(self, config, dao):
         self.config = config
+        print('>>>config', config)
         self.dao = dao
         auth_client = AuthClient(**config['auth'])
-        confd_client = ConfdClient(**config['confd'])
+        token = auth_client.token.new(
+            expiration=365 * 24 * 60 * 60)['token']
+
+        confd_client = ConfdClient(**config['confd'], token=token)
         generator = CallLogsGenerator(
             confd_client,
             default_interpretors(),
-        )
-        self.token_renewer = TokenRenewer(auth_client)
-        self.token_renewer.subscribe_to_token_change(confd_client.set_token)
-        self.token_renewer.subscribe_to_next_token_details_change(
-            generator.set_default_tenant_uuid
         )
         writer = CallLogsWriter(self.dao)
         self.manager = CallLogsManager(self.dao, generator, writer)
