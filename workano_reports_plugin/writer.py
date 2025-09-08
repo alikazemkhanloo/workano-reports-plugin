@@ -11,7 +11,7 @@ def delete_from_list(session, call_log_ids):
     query = session.query(ReportsCallLog)
     query = query.filter(ReportsCallLog.id.in_(call_log_ids))
     query.delete(synchronize_session=False)
-
+    query.commit()
 
 @daosession
 def create_from_list(session, call_logs):
@@ -26,6 +26,7 @@ def create_from_list(session, call_logs):
         call_log.source_participant
         call_log.destination_participant
     session.expunge_all()
+    session.commit()
 
 
 class CallLogsWriter:
@@ -39,4 +40,5 @@ class CallLogsWriter:
         tenant_uuids = {cdr.tenant_uuid for cdr in call_logs.new_call_logs}
         self._dao.tenant.create_all_uuids_if_not_exist(tenant_uuids)
         create_from_list(call_logs.new_call_logs)
+        self._dao.call_log.create_from_list
         # self._dao.cel.associate_all_to_call_logs(call_logs.new_call_logs)
