@@ -16,11 +16,11 @@ logger = logging.getLogger(__name__)
 
 
 class CallLogsManager:
-    def __init__(self, dao, generator, writer, publisher):
+    def __init__(self, dao, generator, writer):
         self.dao: DAO = dao
         self.generator: CallLogsGenerator = generator
         self.writer: CallLogsWriter = writer
-        self.publisher = publisher
+        # self.publisher = publisher
 
     ### these two methods uses call_log from original dao, we should update it to use reports_call_log before enabling them
     # def delete_all(self):
@@ -57,4 +57,4 @@ class CallLogsManager:
         call_logs = self.generator.from_cel(cels)
         logger.debug('Generated %s call logs', len(call_logs.new_call_logs))
         self.writer.write(call_logs)
-        self.publisher.publish_call_log(*call_logs.new_call_logs)
+        # self.publisher.publish_call_log(*call_logs.new_call_logs)

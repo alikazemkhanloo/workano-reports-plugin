@@ -29,7 +29,7 @@ class ReportsBusEventHandler:
             generator.set_default_tenant_uuid
         )
         writer = CallLogsWriter(self.dao)
-        self.manager = CallLogsManager(self.dao, generator, writer,)
+        self.manager = CallLogsManager(self.dao, generator, writer)
 
 
 
