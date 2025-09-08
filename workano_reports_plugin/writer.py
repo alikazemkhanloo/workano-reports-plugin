@@ -15,7 +15,7 @@ def delete_from_list(session, call_log_ids):
 
 @daosession
 def create_from_list(session, call_logs):
-    print('>create_from_list', call_log)
+    print('>create_from_list', call_logs)
     if not call_logs:
         return
     for call_log in call_logs:
