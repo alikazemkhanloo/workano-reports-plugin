@@ -33,6 +33,7 @@ class CallLogsWriter:
         self._dao: DAO = dao
 
     def write(self, call_logs):
+        print('write', call_logs)
         delete_from_list(call_logs.call_logs_to_delete)
         # self._dao.cel.unassociate_all_from_call_log_ids(call_logs.call_logs_to_delete)
         tenant_uuids = {cdr.tenant_uuid for cdr in call_logs.new_call_logs}

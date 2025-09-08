@@ -56,5 +56,6 @@ class CallLogsManager:
     def _generate_from_cels(self, cels):
         call_logs = self.generator.from_cel(cels)
         logger.debug('Generated %s call logs', len(call_logs.new_call_logs))
+        print('call_logs', call_logs)
         self.writer.write(call_logs)
         # self.publisher.publish_call_log(*call_logs.new_call_logs)
