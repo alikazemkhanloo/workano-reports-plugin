@@ -293,10 +293,10 @@ class CallLogsGenerator:
         if schedule:
             state = schedule.compute_state(date)
             call_log.schedule_state = {
-                'state': state.state,
-                'action': state.action.action,
-                'actionarg1': state.action.actionarg1,
-                'actionarg2': state.action.actionarg2,
+                'state': getattr(state, 'state', None),
+                'action': getattr(getattr(state, 'action', None), 'action', None),
+                'actionarg1': getattr(getattr(state, 'action', None), 'actionarg1', None),
+                'actionarg2': getattr(getattr(state, 'action', None), 'actionarg2', None),
             }
 
 
