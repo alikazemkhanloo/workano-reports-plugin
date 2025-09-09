@@ -71,6 +71,7 @@ class RawCallLog:
         self.blocked: bool = False
         # Optional trunk identifier (e.g. outbound/inbound trunk name)
         self.trunk: str | None = None
+        self.schedule_state: dict[str, str] = {}
 
     @property
     def tenant_uuid(self) -> str:
@@ -119,6 +120,7 @@ class RawCallLog:
             destination_details=self.destination_details,
             conversation_id=self.conversation_id,
             blocked=self.blocked,
+            schedule_state=self.schedule_state,
         )
         result.participants = self.participants
         result.cel_ids = self.cel_ids

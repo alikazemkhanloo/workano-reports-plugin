@@ -14,7 +14,7 @@ from sqlalchemy.ext.mutable import MutableList
 from sqlalchemy.orm import relationship
 from sqlalchemy.schema import CheckConstraint, Column, ForeignKey, Index
 from sqlalchemy.sql import and_, case, select, text
-from sqlalchemy.types import Boolean, DateTime, Enum, Integer, String, Text
+from sqlalchemy.types import Boolean, DateTime, Enum, Integer, String, Text, JSON
 from sqlalchemy_utils import UUIDType, generic_repr
 from .db import Base
 
@@ -65,6 +65,7 @@ class ReportsCallLog(Base):
     trunk = Column(String(255))
     user_field = Column(String(255))
     conversation_id = Column(String(255))
+    schedule_state = Column(JSON, nullable=True)
 
     recordings = relationship(
         'ReportsRecording',

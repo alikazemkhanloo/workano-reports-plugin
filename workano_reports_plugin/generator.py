@@ -286,13 +286,18 @@ class CallLogsGenerator:
     
     def _check_schedule(self, call_log: RawCallLog):
         date = call_log.date
-        print('>data:', date)  # --- IGNORE ---
         context = call_log.requested_context
         schedule_model = get_schedule(context)
         schedule = get_schedule_mapper(schedule_model)
+
         if schedule:
             state = schedule.compute_state(date)
-            print('>state:', state.action.action, state.action.actionarg1, state.action.actionarg1, state.state)  # --- IGNORE ---
+            call_log.schedule_state = {
+                'state': state.state,
+                'action': state.action.action,
+                'actionarg1': state.action.actionarg1,
+                'actionarg2': state.action.actionarg2,
+            }
 
 
     def _find_trunk_by_trunk_number(self, trunk_number):
