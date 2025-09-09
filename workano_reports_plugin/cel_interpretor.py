@@ -30,6 +30,8 @@ KEY_PAIR_SEQ_REGEX = re.compile(r'\s*(\w+):\s*([^,:]+),?')
 UUID_REGEX = re.compile(
     r'[0-9a-f]{8}-[0-9a-f]{4}-[0-5][0-9a-f]{3}-[089ab][0-9a-f]{3}-[0-9a-f]{12}'
 )
+TRUNK_REGEX = re.compile(r'(?:PJSIP|SIP)/(?:[^@]+@)?([^-/&;,]+)')
+
 # The recording path regex must be kept synced with CALL_RECORDING_FILENAME_TEMPLATE
 # in wazo-calld and wazo-agid
 RECORDING_PATH_REGEX = re.compile(
@@ -296,6 +298,24 @@ class CallerCELInterpretor(AbstractCELInterpretor):
     def interpret_app_start(self, cel, call):
         call.user_field = cel.userfield
 
+        # Try to extract trunk from Dial appdata only
+        if(call.direction == 'outbound'):
+            try:
+                appname = getattr(cel, 'appname', '') or ''
+                appdata = getattr(cel, 'appdata', '') or ''
+            except Exception:
+                appname = ''
+                appdata = ''
+
+            if appname.lower() == 'dial':
+                trunk = TRUNK_REGEX.match(appdata)
+                if trunk:
+                    call.trunk = trunk.group(1)
+                    logger.debug(
+                        'Identified trunk %s from caller APP_START event(id=%s)',
+                        call.trunk,
+                        cel.id,
+                    )
         if call.was_forwarded:
             return call
 
@@ -394,6 +414,14 @@ class CallerCELInterpretor(AbstractCELInterpretor):
 
     def interpret_xivo_incall(self, cel, call):
         call.direction = 'inbound'
+        trunk = TRUNK_REGEX.match(cel.channame)
+        if trunk:
+            call.trunk = trunk.group(1)
+            logger.debug(
+                'Identified trunk %s from caller CHAN_START event(id=%s)',
+                call.trunk,
+                cel.id,
+            )
         extra = extract_cel_extra(cel.extra)
         if not extra:
             return call

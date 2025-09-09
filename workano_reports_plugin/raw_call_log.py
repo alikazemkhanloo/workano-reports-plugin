@@ -69,6 +69,8 @@ class RawCallLog:
         self.destination_details: list = []
         self.was_forwarded: bool = False
         self.blocked: bool = False
+        # Optional trunk identifier (e.g. outbound/inbound trunk name)
+        self.trunk: str | None = None
 
     @property
     def tenant_uuid(self) -> str:
@@ -113,6 +115,7 @@ class RawCallLog:
             user_field=self.user_field,
             source_line_identity=self.source_line_identity,
             direction=self.direction,
+            trunk=self.trunk,
             destination_details=self.destination_details,
             conversation_id=self.conversation_id,
             blocked=self.blocked,

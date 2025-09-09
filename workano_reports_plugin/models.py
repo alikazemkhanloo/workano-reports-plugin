@@ -61,6 +61,8 @@ class ReportsCallLog(Base):
     destination_line_identity = Column(String(255))
     blocked = Column(Boolean)
     direction = Column(String(255))
+    # Optional trunk identifier for the call (e.g. SIP/PJSIP trunk name)
+    trunk = Column(String(255))
     user_field = Column(String(255))
     conversation_id = Column(String(255))
 
