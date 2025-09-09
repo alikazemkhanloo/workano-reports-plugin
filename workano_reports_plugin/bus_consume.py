@@ -56,7 +56,6 @@ def get_trunk_name_number_map(session):
 class ReportsBusEventHandler:
     def __init__(self, config, dao):
         self.config = config
-        print('>>>config', config)
         self.dao = dao
         auth_client = AuthClient(**config['auth'])
         token = auth_client.token.new(
@@ -83,8 +82,6 @@ class ReportsBusEventHandler:
             return
 
         linked_id = payload['LinkedID']
-
-        print('linked_id', linked_id)
         start_time = time.time()
         try:
             self.manager.generate_from_linked_id(linked_id)
