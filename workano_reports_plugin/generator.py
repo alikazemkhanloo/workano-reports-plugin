@@ -288,8 +288,12 @@ class CallLogsGenerator:
         date = call_log.date
         context = call_log.requested_context
         exten =  call_log.source_exten if call_log.direction == 'outbound' else call_log.requested_exten
+        print('context', context)
+        print('exten', exten)
         schedule_model = get_schedule(context, exten)
+        print('schedule_model', schedule_model)
         schedule = get_schedule_mapper(schedule_model)
+        print('schedule', schedule)
 
         if schedule:
             state = schedule.compute_state(date)
