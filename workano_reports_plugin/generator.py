@@ -201,10 +201,9 @@ def _group_cels_by_shared_channels(
 
 
 class CallLogsGenerator:
-    def __init__(self, confd, trunks, endpoints, cel_interpretors: list[AbstractCELInterpretor]):
+    def __init__(self, confd, trunk_name_number_map, cel_interpretors: list[AbstractCELInterpretor]):
         self.confd: ConfdClient = confd
-        self.trunks = trunks
-        self.endpoints = endpoints
+        self.trunk_name_number_map = trunk_name_number_map
         self._cel_interpretors = cel_interpretors
         self._service_tenant_uuid = None
 
@@ -303,8 +302,7 @@ class CallLogsGenerator:
         return None
 
     def _fill_trunk(self, call_log: RawCallLog):
-        trunk = self._find_trunk_by_trunk_number(call_log.trunk)
-        call_log.trunk = trunk
+        call_log.trunk = self.trunk_name_number_map.get(call_log.trunk, call_log.trunk)
 
     def _get_interpretor(self, cels):
         for interpretor in self._cel_interpretors:
