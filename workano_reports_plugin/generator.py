@@ -7,11 +7,14 @@ import logging
 from collections import namedtuple
 from collections.abc import Iterator
 from itertools import groupby
-from operator import attrgetter
+from operator import attrgetter, call
 
 from wazo_confd_client import Client as ConfdClient
 from xivo.asterisk.protocol_interface import protocol_interface_from_channel
 from xivo_dao.alchemy.cel import CEL
+
+from workano_reports_plugin.dao import get_schedule
+from workano_reports_plugin.schedule_utils import get_schedule_mapper
 
 from .cel_interpretor import AbstractCELInterpretor
 from wazo_call_logd.database.cel_event_type import CELEventType
@@ -253,6 +256,7 @@ class CallLogsGenerator:
             try:
                 call_log = interpretor.interpret_cels(cels_by_call, call_log)
                 self._fill_trunk(call_log)
+                self._check_schedule(call_log)
                 self._remove_duplicate_participants(call_log)
                 self._fetch_participants(call_log)
                 self._ensure_tenant_uuid_is_set(call_log)
@@ -280,6 +284,16 @@ class CallLogsGenerator:
         return {cel.call_log_id for cel in cels if cel.call_log_id}
 
     
+    def _check_schedule(self, call_log: RawCallLog):
+        date = call_log.date
+        print('>data:', date)  # --- IGNORE ---
+        context = call_log.requested_context
+        schedule_model = get_schedule(context)
+        schedule = get_schedule_mapper(schedule_model)
+        state = schedule.compute_state(date)
+        print('>state:', state)  # --- IGNORE ---
+
+
     def _find_trunk_by_trunk_number(self, trunk_number):
         # Iterate over all trunks
         for trunk in self.trunks["items"]:
