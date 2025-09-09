@@ -291,7 +291,7 @@ class CallLogsGenerator:
         schedule_model = get_schedule(context)
         schedule = get_schedule_mapper(schedule_model)
         state = schedule.compute_state(date)
-        print('>state:', state)  # --- IGNORE ---
+        print('>state:', state.action, state.state)  # --- IGNORE ---
 
 
     def _find_trunk_by_trunk_number(self, trunk_number):
