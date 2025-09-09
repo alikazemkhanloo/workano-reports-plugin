@@ -287,7 +287,8 @@ class CallLogsGenerator:
     def _check_schedule(self, call_log: RawCallLog):
         date = call_log.date
         context = call_log.requested_context
-        schedule_model = get_schedule(context)
+        exten =  call_log.source_exten if call_log.direction == 'outbound' else call_log.requested_exten
+        schedule_model = get_schedule(context, exten)
         schedule = get_schedule_mapper(schedule_model)
 
         if schedule:
