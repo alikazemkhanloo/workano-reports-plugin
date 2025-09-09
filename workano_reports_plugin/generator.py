@@ -295,6 +295,7 @@ class CallLogsGenerator:
             call_log.schedule_state = {
                 'state': getattr(state, 'state', None),
                 'schedule_id': getattr(schedule_model, 'id', None),
+                'schedule_name': getattr(schedule_model, 'name', None),
                 'action': getattr(getattr(state, 'action', None), 'action', None),
                 'actionarg1': getattr(getattr(state, 'action', None), 'actionarg1', None),
                 'actionarg2': getattr(getattr(state, 'action', None), 'actionarg2', None),
