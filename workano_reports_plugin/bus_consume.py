@@ -23,8 +23,12 @@ class ReportsBusEventHandler:
             expiration=365 * 24 * 60 * 60)['token']
 
         confd_client = ConfdClient(**config['confd'], token=token)
+        trunks = confd_client.trunks.list()
+        endpoints = self.confd_client.endpoints_sip.list()
         generator = CallLogsGenerator(
             confd_client,
+            trunks,
+            endpoints,
             default_interpretors(),
         )
         writer = CallLogsWriter(self.dao)

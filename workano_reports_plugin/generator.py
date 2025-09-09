@@ -201,8 +201,10 @@ def _group_cels_by_shared_channels(
 
 
 class CallLogsGenerator:
-    def __init__(self, confd, cel_interpretors: list[AbstractCELInterpretor]):
+    def __init__(self, confd, trunks, endpoints, cel_interpretors: list[AbstractCELInterpretor]):
         self.confd: ConfdClient = confd
+        self.trunks = trunks
+        self.endpoints = endpoints
         self._cel_interpretors = cel_interpretors
         self._service_tenant_uuid = None
 
@@ -251,7 +253,7 @@ class CallLogsGenerator:
             logger.debug('interpreting cels using %s', interpretor.__class__.__name__)
             try:
                 call_log = interpretor.interpret_cels(cels_by_call, call_log)
-
+                self._fill_trunk(call_log)
                 self._remove_duplicate_participants(call_log)
                 self._fetch_participants(call_log)
                 self._ensure_tenant_uuid_is_set(call_log)
@@ -277,6 +279,32 @@ class CallLogsGenerator:
 
     def list_call_log_ids(self, cels):
         return {cel.call_log_id for cel in cels if cel.call_log_id}
+
+    
+    def _find_trunk_by_trunk_number(self, trunk_number):
+        # Iterate over all trunks
+        for trunk in self.trunks["items"]:
+            endpoint = trunk.get("endpoint_sip")
+            if not endpoint:
+                continue
+
+            # Find the full endpoint object in endpoints list
+            ep_full = next(
+                (ep for ep in self.endpoints["items"] if ep["uuid"] == endpoint["uuid"]),
+                None
+            )
+            if not ep_full:
+                continue
+
+            # Search aor_section_options for "contact"
+            for opt in ep_full.get("aor_section_options", []):
+                if opt[0] == "contact" and f"sip:{trunk_number}@" in opt[1]:
+                    return trunk
+        return None
+
+    def _fill_trunk(self, call_log: RawCallLog):
+        trunk = self._find_trunk_by_trunk_number(call_log.trunk)
+        call_log.trunk = trunk
 
     def _get_interpretor(self, cels):
         for interpretor in self._cel_interpretors:
