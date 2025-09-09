@@ -7,7 +7,7 @@ import logging
 from collections import namedtuple
 from collections.abc import Iterator
 from itertools import groupby
-from operator import attrgetter, call
+from operator import attrgetter
 
 from wazo_confd_client import Client as ConfdClient
 from xivo.asterisk.protocol_interface import protocol_interface_from_channel
