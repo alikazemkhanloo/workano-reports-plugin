@@ -287,7 +287,8 @@ class CallLogsGenerator:
     def _check_schedule(self, call_log: RawCallLog):
         date = call_log.date
         context = call_log.requested_context
-        destination_type = call_log.destination_details.get('type', None) # e.g. 'group', 'queue','user'
+
+        destination_type = next((dd.destination_details_value for dd in call_log.destination_details if dd.destination_details_key =='type'),None) # e.g. 'group', 'queue','user'
         print('destination_type',destination_type)
         print('call_log.direction',call_log.direction)
         if call_log.direction == 'outbound':
