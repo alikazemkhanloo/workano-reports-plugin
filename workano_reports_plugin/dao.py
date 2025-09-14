@@ -65,7 +65,7 @@ def get_schedule_from_extension(session, **extension_filters):
         path = ext.type
         if not path_id or not path:
             return None
-        return get_schedule_from_path(session, path, path_id)
+        return get_schedule_from_path(path, path_id)
     except Exception:
         logger.exception('Failed to get extension filter %s', extension_filters)
         return None
