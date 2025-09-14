@@ -287,11 +287,22 @@ class CallLogsGenerator:
     def _check_schedule(self, call_log: RawCallLog):
         date = call_log.date
         context = call_log.requested_context
-        exten =  call_log.source_exten if call_log.direction == 'outbound' else call_log.requested_exten
-        print('context', context)
-        print('exten', exten)
-        schedule_model = get_schedule(context, exten)
+        destination_type = call_log.destination_details.get('type', None) # e.g. 'group', 'queue','user'
+        print('destination_type',destination_type)
+        print('call_log.direction',call_log.direction)
+        if call_log.direction == 'outbound':
+            schedule_model = get_schedule(context, type='outcall', exten=None)
+        elif call_log.direction == 'inbound':
+            schedule_model = get_schedule(context, type='incall', exten=None)
+            if not schedule_model:
+                if destination_type in ['queue', 'group']:
+                    schedule_model = get_schedule(context, type=destination_type, exten=None)
+                else:
+                    schedule_model = get_schedule(context, type='user', exten=call_log.destination_internal_exten)
         print('schedule_model', schedule_model)
+        if not schedule_model:
+            return
+
         schedule = get_schedule_mapper(schedule_model)
         print('schedule', schedule)
 

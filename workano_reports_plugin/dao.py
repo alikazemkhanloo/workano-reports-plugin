@@ -52,23 +52,24 @@ def get_trunk_name_number_map(session):
 
 
 @daosession
-def get_schedule(session, context, exten):
+def get_schedule(session, context, type, exten):
     """
     Find the schedule related to the given context.
-    1. Find Extension with context and type='incall'.
+    1. Find Extension with context and type.
     2. Get typeval (incall id).
-    3. Find the first SchedulePath where path='incall' and pathid=incall.id (unique).
+    3. Find the first SchedulePath where path=type and pathid=incall.id (unique).
     4. Return the related Schedule or None. Preload schedule periods (ScheduleTime) via selectinload.
     """
     try:
-        # 1. Find Extension with context and type='incall'
-        ext = session.query(Extension).filter_by(context=context, exten=exten).first()
+        # 1. Find Extension with context and type
+        ext_query = session.query(Extension).filter_by(context=context, type=type)
+        if exten is not None:
+            ext_query = ext_query.filter_by(exten=exten)
+        ext = ext_query.first()
         if not ext:
             return None
         path_id = ext.typeval
-        print('path_id',path_id)
         path = ext.type
-        print('path',path)
         if not path_id or not path:
             return None
         # 2. Find the first SchedulePath where path='path' and pathid=path_id
