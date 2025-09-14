@@ -289,19 +289,20 @@ class CallLogsGenerator:
         context = call_log.requested_context
         exten = call_log.requested_internal_exten
         trunk = call_log.trunk
+        print('call_log.destination_details',call_log.destination_details)
         destination_type = next((dd.destination_details_value for dd in call_log.destination_details if dd.destination_details_key =='type'),None) # e.g. 'group', 'queue','user'
         print('destination_type',destination_type)
         if call_log.direction == 'outbound':
             schedule_model = get_schedule_from_extension(context=context, type='outcall')
-            print('schedule_model in outbound', schedule_model)
         elif call_log.direction == 'inbound':
+            # First try to get schedule for incall from trunk if available
             schedule_model = get_schedule_from_extension(context=context, exten=trunk)
-            print('schedule_model in inbound with incall', schedule_model)
             if not schedule_model:
+                # If not found, try to get schedule from requested internal exten and context mainly for users and queues
                 schedule_model = get_schedule_from_extension(context=call_log.requested_internal_context, exten=call_log.requested_internal_exten)
-                print('schedule_model in inbound using requested internal exten and context mainly for users and queues', schedule_model)
                 if not schedule_model and destination_type:
                     if destination_type in ['group']:
+                        # If not found, try to get schedule from group_id for groups
                         group_id = next((dd.destination_details_value for dd in call_log.destination_details if dd.destination_details_key =='group_id'),None) # e.g. 'group', 'queue','user'
                         schedule_model = get_schedule_from_path(path='group', pathid=group_id)
                         print('schedule_model in inbound group', schedule_model)
