@@ -298,8 +298,8 @@ class CallLogsGenerator:
             schedule_model = get_schedule_from_extension(context=context, exten=trunk)
             print('schedule_model in inbound with incall', schedule_model)
             if not schedule_model:
-                schedule_model = get_schedule_from_extension(context=context, exten=exten)
-                print('schedule_model in inbound exten', schedule_model)
+                schedule_model = get_schedule_from_extension(context=call_log.requested_internal_context, exten=call_log.requested_internal_exten)
+                print('schedule_model in inbound using requested internal exten and context mainly for users and queues', schedule_model)
                 if not schedule_model and destination_type:
                     if destination_type in ['group']:
                         group_id = next((dd.destination_details_value for dd in call_log.destination_details if dd.destination_details_key =='group_id'),None) # e.g. 'group', 'queue','user'
