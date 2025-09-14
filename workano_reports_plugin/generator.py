@@ -290,30 +290,32 @@ class CallLogsGenerator:
         trunk = call_log.trunk
         temp_user_exten = call_log.temp_user_exten
         tenant_uuid  = call_log.tenant_uuid
+        print('temp_user_exten and tenant', temp_user_exten, tenant_uuid)
         print('call_log.destination_details',call_log.destination_details)
         destination_type = next((dd.destination_details_value for dd in call_log.destination_details if dd.destination_details_key =='type'),None) # e.g. 'group', 'queue','user'
         print('destination_type',destination_type)
+        schedule_model = None
         if call_log.direction == 'outbound':
             schedule_model = get_schedule_from_extension(context=context, type='outcall')
         elif call_log.direction == 'inbound':
             # First try to get schedule for incall from trunk if available
             schedule_model = get_schedule_from_extension(context=context, exten=trunk)
-            if not schedule_model:
+            if not schedule_model and call_log.requested_internal_context and call_log.requested_internal_exten:
                 # If not found, try to get schedule from requested internal exten and context mainly for users and queues
                 schedule_model = get_schedule_from_extension(context=call_log.requested_internal_context, exten=call_log.requested_internal_exten)
-                if not schedule_model and destination_type:
-                    if destination_type in ['group']:
-                        # If not found, try to get schedule from group_id for groups
-                        group_id = next((dd.destination_details_value for dd in call_log.destination_details if dd.destination_details_key =='group_id'),None) # e.g. 'group', 'queue','user'
-                        schedule_model = get_schedule_from_path(path='group', pathid=group_id)
-                        print('schedule_model in inbound group', schedule_model)
-                    else:
-                        if not schedule_model and temp_user_exten:
-                            # If not found, try to get schedule from temp_user_exten and tenant
-                            schedule_model = get_schedule_from_exten_tenant(tenant_uuid=tenant_uuid, exten=temp_user_exten)
-                        if not schedule_model:
-                            print('schedule mode not found')
-                            schedule_model = None
+            if not schedule_model and destination_type:
+                if destination_type in ['group']:
+                    # If not found, try to get schedule from group_id for groups
+                    group_id = next((dd.destination_details_value for dd in call_log.destination_details if dd.destination_details_key =='group_id'),None) # e.g. 'group', 'queue','user'
+                    schedule_model = get_schedule_from_path(path='group', pathid=group_id)
+                    print('schedule_model in inbound group', schedule_model)
+            if not schedule_model and temp_user_exten and tenant_uuid:
+                # If not found, try to get schedule from temp_user_exten and tenant
+                print('get schedule for user', temp_user_exten, tenant_uuid)
+                schedule_model = get_schedule_from_exten_tenant(tenant_uuid=tenant_uuid, exten=temp_user_exten)
+            if not schedule_model:
+                print('schedule mode not found')
+
         print('schedule_model', schedule_model)
         if not schedule_model:
             return
