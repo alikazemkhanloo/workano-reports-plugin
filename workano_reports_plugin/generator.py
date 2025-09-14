@@ -287,19 +287,24 @@ class CallLogsGenerator:
     def _check_schedule(self, call_log: RawCallLog):
         date = call_log.date
         context = call_log.requested_context
-
+        exten = call_log.requested_internal_exten
+        trunk = call_log.trunk
         destination_type = next((dd.destination_details_value for dd in call_log.destination_details if dd.destination_details_key =='type'),None) # e.g. 'group', 'queue','user'
         print('destination_type',destination_type)
         print('call_log.direction',call_log.direction)
         if call_log.direction == 'outbound':
-            schedule_model = get_schedule(context, type='outcall', exten=None)
+            schedule_model = get_schedule(context=context, type='outcall')
+            print('schedule_model in outbound', schedule_model)
         elif call_log.direction == 'inbound':
-            schedule_model = get_schedule(context, type='incall', exten=None)
+            schedule_model = get_schedule(context=context, exten=trunk)
+            print('schedule_model in inbound', schedule_model)
             if not schedule_model:
-                if destination_type in ['queue', 'group']:
-                    schedule_model = get_schedule(context, type=destination_type, exten=None)
+                if destination_type in ['group']:
+                    schedule_model = get_schedule(context=context,  exten=exten)
+                    print('schedule_model in inbound group', schedule_model)
                 else:
-                    schedule_model = get_schedule(context, type='user', exten=call_log.destination_internal_exten)
+                    print('schedule mode not found')
+                    schedule_model = None
         print('schedule_model', schedule_model)
         if not schedule_model:
             return

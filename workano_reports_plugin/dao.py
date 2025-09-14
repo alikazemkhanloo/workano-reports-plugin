@@ -8,6 +8,7 @@ from xivo_dao.alchemy.schedulepath import SchedulePath
 from xivo_dao.alchemy.schedule_time import ScheduleTime
 from xivo_dao.alchemy.incall import Incall
 from xivo_dao.alchemy.extension import Extension
+from xivo_dao.alchemy.queue import Queue
 from sqlalchemy.orm import selectinload
 
 logger = logging.getLogger(__name__)
@@ -52,7 +53,7 @@ def get_trunk_name_number_map(session):
 
 
 @daosession
-def get_schedule(session, context, type, exten):
+def get_schedule(session, **extension_filters):
     """
     Find the schedule related to the given context.
     1. Find Extension with context and type.
@@ -60,12 +61,10 @@ def get_schedule(session, context, type, exten):
     3. Find the first SchedulePath where path=type and pathid=incall.id (unique).
     4. Return the related Schedule or None. Preload schedule periods (ScheduleTime) via selectinload.
     """
-    print('get_schedule', context, type, exten)
+    print('get_schedule', extension_filters)
     try:
         # 1. Find Extension with context and type
-        ext_query = session.query(Extension).filter_by(context=context, type=type)
-        if exten is not None:
-            ext_query = ext_query.filter_by(exten=exten)
+        ext_query = session.query(Extension).filter_by(**extension_filters)
         ext = ext_query.first()
         if not ext:
             return None
@@ -90,3 +89,12 @@ def get_schedule(session, context, type, exten):
     except Exception:
         logger.exception('Failed to get schedules for context %s', context)
         return None
+
+@daosession
+def get_all_queues(session):
+    try:
+        queues = session.query(Queue).all()
+        return queues or []
+    except Exception:
+        logger.exception('Failed to get all queues')
+        return []
