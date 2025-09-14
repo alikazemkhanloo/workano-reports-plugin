@@ -60,6 +60,7 @@ def get_schedule(session, context, type, exten):
     3. Find the first SchedulePath where path=type and pathid=incall.id (unique).
     4. Return the related Schedule or None. Preload schedule periods (ScheduleTime) via selectinload.
     """
+    print('get_schedule', context, type, exten)
     try:
         # 1. Find Extension with context and type
         ext_query = session.query(Extension).filter_by(context=context, type=type)
