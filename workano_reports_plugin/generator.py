@@ -295,7 +295,8 @@ class CallLogsGenerator:
         destination_type = next((dd.destination_details_value for dd in call_log.destination_details if dd.destination_details_key =='type'),None) # e.g. 'group', 'queue','user'
         print('destination_type',destination_type)
         schedule_model = None
-        if call_log.direction == 'outbound':
+        if call_log.direction == 'internal':
+            # todo: check extention range to see if it was outcall but redirected within wazo
             schedule_model = get_schedule_from_extension(context=context, type='outcall')
         elif call_log.direction == 'inbound':
             # First try to get schedule for incall from trunk if available
@@ -317,10 +318,9 @@ class CallLogsGenerator:
                 print('schedule mode not found')
 
         print('schedule_model', schedule_model)
-        if not schedule_model:
-            return
-
-        schedule = get_schedule_mapper(schedule_model)
+        schedule = None
+        if schedule_model:
+            schedule = get_schedule_mapper(schedule_model)
         print('schedule', schedule)
 
         if schedule:
@@ -333,7 +333,10 @@ class CallLogsGenerator:
                 'actionarg1': getattr(getattr(state, 'action', None), 'actionarg1', None),
                 'actionarg2': getattr(getattr(state, 'action', None), 'actionarg2', None),
             }
-
+        else:
+            call_log.schedule_state = {
+                'state': 'opened',
+            }
 
     def _find_trunk_by_trunk_number(self, trunk_number):
         # Iterate over all trunks
