@@ -102,7 +102,7 @@ def get_schedule_from_exten_tenant(session, tenant_uuid, exten):
                 Extension,
                 and_(
                     cast(Extension.typeval, String) == cast(SchedulePath.pathid, String),
-                    Extension.type == SchedulePath.path,
+                    cast(Extension.type, String) == cast(SchedulePath.path, String),
                 ),
             )
             .join(Context, Context.name == Extension.context)
