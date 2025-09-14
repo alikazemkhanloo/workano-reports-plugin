@@ -53,14 +53,7 @@ def get_trunk_name_number_map(session):
 
 
 @daosession
-def get_schedule(session, **extension_filters):
-    """
-    Find the schedule related to the given context.
-    1. Find Extension with context and type.
-    2. Get typeval (incall id).
-    3. Find the first SchedulePath where path=type and pathid=incall.id (unique).
-    4. Return the related Schedule or None. Preload schedule periods (ScheduleTime) via selectinload.
-    """
+def get_schedule_from_extension(session, **extension_filters):
     print('get_schedule', extension_filters)
     try:
         # 1. Find Extension with context and type
@@ -72,13 +65,20 @@ def get_schedule(session, **extension_filters):
         path = ext.type
         if not path_id or not path:
             return None
-        # 2. Find the first SchedulePath where path='path' and pathid=path_id
-        schedule_path = session.query(SchedulePath).filter_by(path=path, pathid=path_id).first()
+        return get_schedule_from_path(session, path, path_id)
+    except Exception:
+        logger.exception('Failed to get schedules for context %s', context)
+        return None
+
+
+@daosession
+def get_schedule_from_path(session, path, pathid):
+    try:
+        schedule_path = session.query(SchedulePath).filter_by(path=path, pathid=pathid).first()
         print('schedule_path',schedule_path)
         if not schedule_path:
             return None
         print('schedule_path.schedule_id',schedule_path.schedule_id)
-        # 3. Get related Schedule and preload periods
         schedule = (
             session.query(Schedule)
             .options(selectinload(Schedule.periods))
@@ -89,6 +89,7 @@ def get_schedule(session, **extension_filters):
     except Exception:
         logger.exception('Failed to get schedules for context %s', context)
         return None
+
 
 @daosession
 def get_all_queues(session):

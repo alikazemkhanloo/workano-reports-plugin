@@ -13,7 +13,7 @@ from wazo_confd_client import Client as ConfdClient
 from xivo.asterisk.protocol_interface import protocol_interface_from_channel
 from xivo_dao.alchemy.cel import CEL
 
-from workano_reports_plugin.dao import get_schedule
+from workano_reports_plugin.dao import get_schedule, get_schedule_from_extension, get_schedule_from_path
 from workano_reports_plugin.schedule_utils import get_schedule_mapper
 
 from .cel_interpretor import AbstractCELInterpretor
@@ -291,20 +291,23 @@ class CallLogsGenerator:
         trunk = call_log.trunk
         destination_type = next((dd.destination_details_value for dd in call_log.destination_details if dd.destination_details_key =='type'),None) # e.g. 'group', 'queue','user'
         print('destination_type',destination_type)
-        print('call_log.direction',call_log.direction)
         if call_log.direction == 'outbound':
-            schedule_model = get_schedule(context=context, type='outcall')
+            schedule_model = get_schedule_from_extension(context=context, type='outcall')
             print('schedule_model in outbound', schedule_model)
         elif call_log.direction == 'inbound':
-            schedule_model = get_schedule(context=context, exten=trunk)
-            print('schedule_model in inbound', schedule_model)
+            schedule_model = get_schedule_from_extension(context=context, exten=trunk)
+            print('schedule_model in inbound with incall', schedule_model)
             if not schedule_model:
-                if destination_type in ['group']:
-                    schedule_model = get_schedule(context=context,  exten=exten)
-                    print('schedule_model in inbound group', schedule_model)
-                else:
-                    print('schedule mode not found')
-                    schedule_model = None
+                schedule_model = get_schedule_from_extension(context=context, exten=exten)
+                print('schedule_model in inbound exten', schedule_model)
+                if not schedule_model and destination_type:
+                    if destination_type in ['group']:
+                        group_id = next((dd.destination_details_value for dd in call_log.destination_details if dd.destination_details_key =='group_id'),None) # e.g. 'group', 'queue','user'
+                        schedule_model = get_schedule_from_path(path='group', pathid=group_id)
+                        print('schedule_model in inbound group', schedule_model)
+                    else:
+                        print('schedule mode not found')
+                        schedule_model = None
         print('schedule_model', schedule_model)
         if not schedule_model:
             return
