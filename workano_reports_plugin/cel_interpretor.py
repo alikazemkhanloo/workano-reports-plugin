@@ -311,7 +311,7 @@ class CallerCELInterpretor(AbstractCELInterpretor):
 
         # Remove unwanted extensions
         call.extension_filter.filter_call(call)
-        call.temp_user_exten = cel['cid_rdnis']
+        call.temp_user_exten = cel.cid_rdnis
         return call
 
     def interpret_app_start(self, cel, call):
