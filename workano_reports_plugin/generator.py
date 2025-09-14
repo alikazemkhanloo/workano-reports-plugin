@@ -13,7 +13,7 @@ from wazo_confd_client import Client as ConfdClient
 from xivo.asterisk.protocol_interface import protocol_interface_from_channel
 from xivo_dao.alchemy.cel import CEL
 
-from workano_reports_plugin.dao import get_schedule_from_extension, get_schedule_from_path
+from workano_reports_plugin.dao import get_schedule_from_extension, get_schedule_from_path, get_schedule_from_exten_tenant
 from workano_reports_plugin.schedule_utils import get_schedule_mapper
 
 from .cel_interpretor import AbstractCELInterpretor
@@ -287,8 +287,9 @@ class CallLogsGenerator:
     def _check_schedule(self, call_log: RawCallLog):
         date = call_log.date
         context = call_log.requested_context
-        exten = call_log.requested_internal_exten
         trunk = call_log.trunk
+        temp_user_exten = call_log.temp_user_exten
+        tenant_uuid  = call_log.tenant_uuid
         print('call_log.destination_details',call_log.destination_details)
         destination_type = next((dd.destination_details_value for dd in call_log.destination_details if dd.destination_details_key =='type'),None) # e.g. 'group', 'queue','user'
         print('destination_type',destination_type)
@@ -307,8 +308,12 @@ class CallLogsGenerator:
                         schedule_model = get_schedule_from_path(path='group', pathid=group_id)
                         print('schedule_model in inbound group', schedule_model)
                     else:
-                        print('schedule mode not found')
-                        schedule_model = None
+                        if not schedule_model and temp_user_exten:
+                            # If not found, try to get schedule from temp_user_exten and tenant
+                            schedule_model = get_schedule_from_exten_tenant(tenant_uuid=tenant_uuid, exten=temp_user_exten)
+                        if not schedule_model:
+                            print('schedule mode not found')
+                            schedule_model = None
         print('schedule_model', schedule_model)
         if not schedule_model:
             return

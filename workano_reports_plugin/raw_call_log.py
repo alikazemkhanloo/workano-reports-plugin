@@ -69,6 +69,7 @@ class RawCallLog:
         self.destination_details: list = []
         self.was_forwarded: bool = False
         self.blocked: bool = False
+        self.temp_user_exten: str = None
         # Optional trunk identifier (e.g. outbound/inbound trunk name)
         self.trunk: str | None = None
         self.schedule_state: dict[str, str] = {}

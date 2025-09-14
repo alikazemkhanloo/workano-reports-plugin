@@ -1,5 +1,6 @@
 import logging
 import re
+from tkinter import E
 
 from xivo_dao.helpers.db_manager import daosession
 from xivo_dao.alchemy.trunkfeatures import TrunkFeatures
@@ -8,7 +9,8 @@ from xivo_dao.alchemy.schedulepath import SchedulePath
 from xivo_dao.alchemy.schedule_time import ScheduleTime
 from xivo_dao.alchemy.incall import Incall
 from xivo_dao.alchemy.extension import Extension
-from xivo_dao.alchemy.queue import Queue
+from xivo_dao.alchemy.context import Context
+from sqlalchemy import and_
 from sqlalchemy.orm import selectinload
 
 logger = logging.getLogger(__name__)
@@ -92,10 +94,36 @@ def get_schedule_from_path(session, path, pathid):
 
 
 @daosession
-def get_all_queues(session):
+def get_schedule_from_exten_tenant(session, tenant_uuid, exten):
     try:
-        queues = session.query(Queue).all()
-        return queues or []
+        schedule_path = (
+            session.query(SchedulePath)
+            .join(
+                Extension,
+                and_(
+                    Extension.typeval == SchedulePath.pathid,
+                    Extension.type == SchedulePath.path,
+                ),
+            )
+            .join(Context, Context.name == Extension.context)
+            .filter(
+                Extension.exten == exten,
+                Context.tenant_uuid == tenant_uuid,
+                SchedulePath.path == 'user',  # still required for your case
+            )
+            .first()
+        )
+        print('schedule_path',schedule_path)
+        if not schedule_path:
+            return None
+        schedule = (
+            session.query(Schedule)
+            .options(selectinload(Schedule.periods))
+            .filter_by(id=schedule_path.schedule_id)
+            .first()
+        )
+        return schedule
+
     except Exception:
-        logger.exception('Failed to get all queues')
-        return []
+        logger.exception('Failed to get schedule for tenant %s and exten %s', tenant_uuid, exten)
+        return None
