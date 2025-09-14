@@ -1,6 +1,5 @@
 import logging
 import re
-from tkinter import E
 
 from xivo_dao.helpers.db_manager import daosession
 from xivo_dao.alchemy.trunkfeatures import TrunkFeatures
