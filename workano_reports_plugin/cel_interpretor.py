@@ -695,7 +695,7 @@ class CallerCELInterpretor(AbstractCELInterpretor):
             call.requested_type = extra_dict['type']
 
         call.destination_details = [
-            Destination(
+            ReportsDestination(
                 destination_details_key=key,
                 destination_details_value=value,
             )
