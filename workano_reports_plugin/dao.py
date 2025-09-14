@@ -9,7 +9,8 @@ from xivo_dao.alchemy.schedule_time import ScheduleTime
 from xivo_dao.alchemy.incall import Incall
 from xivo_dao.alchemy.extension import Extension
 from xivo_dao.alchemy.context import Context
-from sqlalchemy import and_
+from sqlalchemy import and_, cast, String
+
 from sqlalchemy.orm import selectinload
 
 logger = logging.getLogger(__name__)
@@ -100,7 +101,7 @@ def get_schedule_from_exten_tenant(session, tenant_uuid, exten):
             .join(
                 Extension,
                 and_(
-                    Extension.typeval == SchedulePath.pathid,
+                    cast(Extension.typeval, String) == cast(SchedulePath.pathid, String),
                     Extension.type == SchedulePath.path,
                 ),
             )
