@@ -74,9 +74,10 @@ def get_schedule(session, context, type, exten):
             return None
         # 2. Find the first SchedulePath where path='path' and pathid=path_id
         schedule_path = session.query(SchedulePath).filter_by(path=path, pathid=path_id).first()
-        print('schedule_path.schedule_id',schedule_path.schedule_id)
+        print('schedule_path',schedule_path)
         if not schedule_path:
             return None
+        print('schedule_path.schedule_id',schedule_path.schedule_id)
         # 3. Get related Schedule and preload periods
         schedule = (
             session.query(Schedule)
