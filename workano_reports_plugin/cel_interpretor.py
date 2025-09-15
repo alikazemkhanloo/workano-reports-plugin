@@ -79,14 +79,13 @@ def parse_key_pair_sequence(text: str) -> list[tuple[str, str]]:
 
 def extract_cel_extra(extra: str | None) -> dict | None:
     if not extra:
-        logger.info('missing CEL extra')
+        logger.debug('missing CEL extra')
         return
 
     try:
         extra = json.loads(extra)
     except json.decoder.JSONDecodeError as e:
-        print('e',e)
-        logger.info('invalid CEL extra: %s', repr(extra))
+        logger.debug('invalid CEL extra: %s', repr(extra))
         return
 
     return extra
@@ -501,7 +500,6 @@ class CallerCELInterpretor(AbstractCELInterpretor):
         return call
 
     def interpret_wazo_ivr_choice(self, cel, call):
-        print('interpretting ivr choices', cel.extra)
         # pasrs cel.appdata which has format: "WAZO_IVR_CHOICE, {json}"
         appdata = getattr(cel, 'appdata', '') or ''
         if appdata:
