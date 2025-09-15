@@ -13,7 +13,7 @@ from wazo_confd_client import Client as ConfdClient
 from xivo.asterisk.protocol_interface import protocol_interface_from_channel
 from xivo_dao.alchemy.cel import CEL
 
-from workano_reports_plugin.dao import get_context_numbers, get_schedule_from_extension, get_schedule_from_path, get_schedule_from_exten_tenant
+from workano_reports_plugin.dao import get_context_numbers, get_schedule_from_extension, get_schedule_from_outcall, get_schedule_from_path, get_schedule_from_exten_tenant
 from workano_reports_plugin.schedule_utils import get_schedule_mapper
 
 from .cel_interpretor import AbstractCELInterpretor
@@ -330,7 +330,7 @@ class CallLogsGenerator:
             in_contextnumbers = check_if_is_in_contextnumbers(context_numbers,call_log.destination_exten)
             if not in_contextnumbers:
                 # it was outcall blocked by schedule
-                schedule_model = get_schedule_from_extension(context=context, type='outcall')
+                schedule_model = get_schedule_from_outcall(tenant_uuid=tenant_uuid)
                 print('schedule for outcalls', schedule_model)
             else:
                 # it was an internal call

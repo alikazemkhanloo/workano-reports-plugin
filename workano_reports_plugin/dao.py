@@ -9,6 +9,7 @@ from xivo_dao.alchemy.schedule_time import ScheduleTime
 from xivo_dao.alchemy.incall import Incall
 from xivo_dao.alchemy.extension import Extension
 from xivo_dao.alchemy.context import Context
+from xivo_dao.alchemy.outcall import Outcall
 from xivo_dao.alchemy.contextnumbers import ContextNumbers
 from sqlalchemy import and_, cast, String
 from sqlalchemy.orm import selectinload
@@ -135,4 +136,17 @@ def get_context_numbers(session):
         return query.all()
     except Exception:
         logger.exception('Failed to get context numbers')
+        return None
+
+
+@daosession
+def get_schedule_from_outcall(session, tenant_uuid ): 
+    try:
+        outcall = session.query(Outcall).filter_by(tenant_uuid=tenant_uuid).first()
+        print('get_schedule_from_outcall', tenant_uuid, outcall)
+        if not outcall:
+            return None
+        return get_schedule_from_path('outcall', outcall.id)
+    except Exception:
+        logger.exception('Failed to get schedule for outcall tenant %s', tenant_uuid)
         return None
