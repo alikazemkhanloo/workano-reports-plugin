@@ -9,8 +9,8 @@ from xivo_dao.alchemy.schedule_time import ScheduleTime
 from xivo_dao.alchemy.incall import Incall
 from xivo_dao.alchemy.extension import Extension
 from xivo_dao.alchemy.context import Context
+from xivo_dao.alchemy.contextnumbers import ContextNumbers
 from sqlalchemy import and_, cast, String
-
 from sqlalchemy.orm import selectinload
 
 logger = logging.getLogger(__name__)
@@ -126,4 +126,13 @@ def get_schedule_from_exten_tenant(session, tenant_uuid, exten):
 
     except Exception:
         logger.exception('Failed to get schedule for tenant %s and exten %s', tenant_uuid, exten)
+        return None
+    
+@daosession
+def get_context_numbers(session):
+    try:
+        query = session.query(ContextNumbers)
+        return query.all()
+    except Exception:
+        logger.exception('Failed to get context numbers')
         return None

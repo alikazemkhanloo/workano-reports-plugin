@@ -13,7 +13,7 @@ from wazo_confd_client import Client as ConfdClient
 from xivo.asterisk.protocol_interface import protocol_interface_from_channel
 from xivo_dao.alchemy.cel import CEL
 
-from workano_reports_plugin.dao import get_schedule_from_extension, get_schedule_from_path, get_schedule_from_exten_tenant
+from workano_reports_plugin.dao import get_context_numbers, get_schedule_from_extension, get_schedule_from_path, get_schedule_from_exten_tenant
 from workano_reports_plugin.schedule_utils import get_schedule_mapper
 
 from .cel_interpretor import AbstractCELInterpretor
@@ -25,6 +25,35 @@ from .models import ReportsCallLog, ReportsCallLogParticipant
 from .participant import ParticipantInfo, find_participant, find_participant_by_uuid
 
 logger = logging.getLogger(__name__)
+
+
+def check_if_is_in_contextnumbers(context_numbers, exten):
+    """Return True if `exten` is included in any ContextNumbers entry
+    whose type is not 'incall'.
+
+    Uses the ContextNumbers.in_range helper on each entry. Malformed
+    entries are ignored.
+    """
+    if not context_numbers or not exten:
+        return False
+
+    exten_str = str(exten)
+    for cn in context_numbers:
+        try:
+            if getattr(cn, 'type', None) == 'incall':
+                continue
+
+            try:
+                if cn.in_range(exten_str):
+                    return True
+            except Exception:
+                # ignore malformed entry
+                continue
+        except Exception:
+            # ignore malformed entries
+            continue
+
+    return False
 
 
 CallLogsCreation = namedtuple(
@@ -283,7 +312,6 @@ class CallLogsGenerator:
     def list_call_log_ids(self, cels):
         return {cel.call_log_id for cel in cels if cel.call_log_id}
 
-    
     def _check_schedule(self, call_log: RawCallLog):
         date = call_log.date
         context = call_log.requested_context
@@ -297,12 +325,23 @@ class CallLogsGenerator:
         schedule_model = None
         if call_log.direction == 'internal':
             # todo: check extention range to see if it was outcall but redirected within wazo
-            schedule_model = get_schedule_from_extension(context=context, type='outcall')
+            context_numbers = get_context_numbers()
+            print('context_numbers', context_numbers)
+            in_contextnumbers = check_if_is_in_contextnumbers(context_numbers,call_log.destination_exten)
+            if not in_contextnumbers:
+                # it was outcall blocked by schedule
+                schedule_model = get_schedule_from_extension(context=context, type='outcall')
+                print('schedule for outcalls', schedule_model)
+            else:
+                # it was an internal call
+                schedule_model = get_schedule_from_exten_tenant(tenant_uuid=tenant_uuid, exten=temp_user_exten)
+                print('schedule for internal users', schedule_model)
+                pass
         elif call_log.direction == 'inbound':
             # First try to get schedule for incall from trunk if available
             schedule_model = get_schedule_from_extension(context=context, exten=trunk)
             if not schedule_model and call_log.requested_internal_context and call_log.requested_internal_exten:
-                # If not found, try to get schedule from requested internal exten and context mainly for users and queues
+                # If not found, try to get schedule from requested internal exten and context mainly for queues
                 schedule_model = get_schedule_from_extension(context=call_log.requested_internal_context, exten=call_log.requested_internal_exten)
             if not schedule_model and destination_type:
                 if destination_type in ['group']:
