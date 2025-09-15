@@ -84,7 +84,8 @@ def extract_cel_extra(extra: str | None) -> dict | None:
 
     try:
         extra = json.loads(extra)
-    except json.decoder.JSONDecodeError:
+    except json.decoder.JSONDecodeError as e:
+        print('e',e)
         logger.info('invalid CEL extra: %s', repr(extra))
         return
 
