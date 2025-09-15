@@ -142,7 +142,7 @@ def get_context_numbers(session):
 @daosession
 def get_schedule_from_outcall(session, tenant_uuid ): 
     try:
-        outcall = session.query(Outcall).filter_by(tenant_uuid=tenant_uuid).first()
+        outcall = session.query(Outcall).first()
         print('get_schedule_from_outcall', tenant_uuid, outcall)
         if not outcall:
             return None

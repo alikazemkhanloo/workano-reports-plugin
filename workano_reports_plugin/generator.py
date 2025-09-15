@@ -330,7 +330,7 @@ class CallLogsGenerator:
             in_contextnumbers = check_if_is_in_contextnumbers(context_numbers,call_log.destination_exten)
             if not in_contextnumbers:
                 # it was outcall blocked by schedule
-                schedule_model = get_schedule_from_outcall(tenant_uuid=tenant_uuid)
+                schedule_model = get_schedule_from_outcall()
                 print('schedule for outcalls', schedule_model)
             else:
                 # it was an internal call
