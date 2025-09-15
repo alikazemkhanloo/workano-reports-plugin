@@ -508,6 +508,7 @@ class CallerCELInterpretor(AbstractCELInterpretor):
         """
         print('interpretting ivr choices', cel.extra)
         extra = extract_cel_extra(cel.extra)
+        print('extra', extra)
         if not extra:
             logger.error(
                 'Cannot interpret WAZO_IVR_CHOICE event(cel.id=%s), missing extra data',
