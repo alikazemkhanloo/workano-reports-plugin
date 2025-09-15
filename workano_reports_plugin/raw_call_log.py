@@ -75,6 +75,10 @@ class RawCallLog:
         self.schedule_state: dict[str, str] = {}
         # History of IVR choices detected during CEL interpretation
         self.ivr_choices: list[dict] = []
+        # History of forward events (to be converted to ReportsForward rows)
+        self.forwards: list[dict] = []
+        # History of transfer events (to be converted to ReportsTransfer rows)
+        self.transfers: list[dict] = []
 
     @property
     def tenant_uuid(self) -> str:
@@ -129,6 +133,66 @@ class RawCallLog:
         result.participants = self.participants
         result.cel_ids = self.cel_ids
         result.recordings = self.recordings
+        # convert forwards dicts to ReportsForward model instances if present
+        try:
+            from .models import ReportsForward
+            from datetime import datetime as _dt
+
+            forwards_models = []
+            for f in getattr(self, 'forwards', []) or []:
+                event_time = f.get('eventtime')
+                if isinstance(event_time, str):
+                    try:
+                        # try ISO format first
+                        event_time = _dt.fromisoformat(event_time)
+                    except Exception:
+                        event_time = None
+                forwards_models.append(
+                    ReportsForward(
+                        cel_id=f.get('cel_id'),
+                        event_time=event_time,
+                        num=f.get('num'),
+                        context=f.get('context'),
+                        name=f.get('name'),
+                        channame=f.get('channame'),
+                        extra=f.get('extra'),
+                    )
+                )
+            if forwards_models:
+                result.forwards = forwards_models
+        except Exception:
+            # best effort: don't break call log conversion if forwards conversion fails
+            logger.exception('Failed to convert forwards to model instances')
+        # convert transfers dicts to ReportsTransfer model instances if present
+        try:
+            from .models import ReportsTransfer
+            from datetime import datetime as _dt
+
+            transfers_models = []
+            for t in getattr(self, 'transfers', []) or []:
+                event_time = t.get('eventtime')
+                if isinstance(event_time, str):
+                    try:
+                        event_time = _dt.fromisoformat(event_time)
+                    except Exception:
+                        event_time = None
+                transfers_models.append(
+                    ReportsTransfer(
+                        cel_id=t.get('cel_id'),
+                        event_time=event_time,
+                        transfer_type=t.get('transfer_type'),
+                        target_exten=t.get('target_exten'),
+                        context=t.get('context'),
+                        transferee_channel_name=t.get('transferee_channel_name'),
+                        transferee_channel_uniqueid=t.get('transferee_channel_uniqueid'),
+                        channame=t.get('channame'),
+                        extra=t.get('extra'),
+                    )
+                )
+            if transfers_models:
+                result.transfers = transfers_models
+        except Exception:
+            logger.exception('Failed to convert transfers to model instances')
 
         return result
 

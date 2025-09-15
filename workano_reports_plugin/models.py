@@ -101,6 +101,24 @@ class ReportsCallLog(Base):
         lazy='subquery',
     )
 
+    # Relationship to normalized forwards table (one row per forward event)
+    forwards = relationship(
+        'ReportsForward',
+        order_by='ReportsForward.event_time',
+        cascade='all,delete-orphan',
+        passive_deletes=True,
+        lazy='subquery',
+    )
+
+    # Relationship to normalized transfers table (one row per transfer event)
+    transfers = relationship(
+        'ReportsTransfer',
+        order_by='ReportsTransfer.event_time',
+        cascade='all,delete-orphan',
+        passive_deletes=True,
+        lazy='subquery',
+    )
+
     @property
     def destination_details_dict(self):
         return {
@@ -303,4 +321,78 @@ class ReportsRecording(Base):
         return self.path is None
 
     call_log = relationship(ReportsCallLog, uselist=False, viewonly=True)
+
+
+@generic_repr
+class ReportsForward(Base):
+    """Normalized table storing individual forward events for a call log.
+
+    One row per forward action (e.g. user forward). Useful for querying/analytics.
+    """
+
+    __tablename__ = 'plugin_reports_call_log_forward'
+
+    id = Column(Integer, nullable=False, primary_key=True)
+    call_log_id = Column(
+        Integer,
+        ForeignKey(
+            'plugin_reports_call_log.id',
+            name='plugin_reports_call_log_forward_call_log_id_fkey',
+            ondelete='CASCADE',
+        ),
+        nullable=False,
+    )
+    cel_id = Column(Integer)
+    event_time = Column(DateTime(timezone=True))
+    num = Column(String(64))
+    context = Column(String(255))
+    name = Column(String(255))
+    channame = Column(String(255))
+    extra = Column(JSON, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=text('now()'))
+
+    call_log = relationship('ReportsCallLog', uselist=False)
+
+    __table_args__ = (
+        Index('plugin_reports_call_log_forward__idx__call_log_id', 'call_log_id'),
+        Index('plugin_reports_call_log_forward__idx__event_time', 'event_time'),
+    )
+
+
+@generic_repr
+class ReportsTransfer(Base):
+    """Normalized table storing individual transfer events for a call log.
+
+    One row per transfer action (blind or attended). Useful for querying/analytics.
+    """
+
+    __tablename__ = 'plugin_reports_call_log_transfer'
+
+    id = Column(Integer, nullable=False, primary_key=True)
+    call_log_id = Column(
+        Integer,
+        ForeignKey(
+            'plugin_reports_call_log.id',
+            name='plugin_reports_call_log_transfer_call_log_id_fkey',
+            ondelete='CASCADE',
+        ),
+        nullable=False,
+    )
+    cel_id = Column(Integer)
+    event_time = Column(DateTime(timezone=True))
+    transfer_type = Column(String(32))
+    target_exten = Column(String(64))
+    context = Column(String(255))
+    transferee_channel_name = Column(String(255))
+    transferee_channel_uniqueid = Column(String(255))
+    channame = Column(String(255))
+    extra = Column(JSON, nullable=True)
+    created_at = Column(DateTime(timezone=True), server_default=text('now()'))
+
+    call_log = relationship('ReportsCallLog', uselist=False)
+
+    __table_args__ = (
+        Index('plugin_reports_call_log_transfer__idx__call_log_id', 'call_log_id'),
+        Index('plugin_reports_call_log_transfer__idx__event_time', 'event_time'),
+    )
 

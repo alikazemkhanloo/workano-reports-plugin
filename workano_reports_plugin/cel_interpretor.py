@@ -282,6 +282,8 @@ class CallerCELInterpretor(AbstractCELInterpretor):
             CELEventType.xivo_incall: self.interpret_xivo_incall,
             CELEventType.xivo_outcall: self.interpret_xivo_outcall,
             CELEventType.xivo_user_fwd: self.interpret_xivo_user_fwd,
+            CELEventType.blind_transfer: self.interpret_transfer,
+            CELEventType.attended_transfer: self.interpret_transfer,
             CELEventType.wazo_meeting_name: self.interpret_wazo_meeting_name,
             CELEventType.wazo_conference: self.interpret_wazo_conference,
             CELEventType.wazo_user_missed_call: self.interpret_wazo_user_missed_call,
@@ -466,21 +468,102 @@ class CallerCELInterpretor(AbstractCELInterpretor):
 
     def interpret_xivo_user_fwd(self, cel, call: RawCallLog):
         call.was_forwarded = True
-        extra = re.match(EXTRA_USER_FWD_REGEX, cel.extra)
+
+        # Parse forward info from cel.extra (expected JSON wrapper with 'extra' key)
+        extra_wrapper = extract_cel_extra(cel.extra)
+        kv: dict | None = None
+        if extra_wrapper:
+            try:
+                kv = extract_key_value_pairs_as_dict(extra_wrapper)
+            except Exception:
+                logger.debug('Failed to extract key/value pairs from forward extra for cel.id=%s', cel.id)
+                kv = None
+
+        num = None
+        context = None
+        name = None
+        if kv:
+            # normalize keys to lowercase for robustness
+            lower = {k.lower(): v for k, v in kv.items()}
+            num = lower.get('num') or lower.get('number')
+            context = lower.get('context')
+            name = lower.get('name')
 
         # Replace destination_exten here because WAZO_USER_MISSED_CALL event
         # doesn't produce the correct destination extension on multiple forwards
-        if extra:
-            call.destination_exten = call.extension_filter.filter(extra.group(1))
+        if num:
+            call.destination_exten = call.extension_filter.filter(num)
 
+        # Record fields for the initial requested internal info
         if call.interpret_caller_xivo_user_fwd:
-            if extra:
-                call.requested_internal_exten = call.extension_filter.filter(
-                    extra.group(1)
-                )
-                call.requested_internal_context = extra.group(2)
-                call.requested_name = extra.group(3)
+            if num:
+                call.requested_internal_exten = call.extension_filter.filter(num)
+            if context:
+                call.requested_internal_context = context
+            if name:
+                call.requested_name = name
             call.interpret_caller_xivo_user_fwd = False
+
+        # Append structured forward entry to RawCallLog.forwards
+        try:
+            eventtime_iso = parse_eventtime(cel.eventtime).isoformat() if getattr(cel, 'eventtime', None) else None
+        except Exception:
+            eventtime_iso = None
+
+        forward_entry = {
+            'cel_id': getattr(cel, 'id', None),
+            'num': num,
+            'context': context,
+            'name': name,
+            'channame': getattr(cel, 'channame', None),
+            'eventtime': eventtime_iso,
+            'extra': kv,
+        }
+
+        try:
+            if hasattr(call, 'forwards'):
+                call.forwards.append(forward_entry)
+        except Exception:
+            logger.exception('Failed to append forward entry to call.forwards for cel.id=%s', cel.id)
+
+        return call
+
+    def interpret_transfer(self, cel, call):
+        """Handle BLINDTRANSFER and ATTENDEDTRANSFER events by recording transfer data."""
+        transfer_type = 'blind' if cel.eventtype == CELEventType.blind_transfer else 'attended'
+        extra = extract_cel_extra(cel.extra)
+        if not extra:
+            logger.debug('Missing extra for transfer event cel.id=%s', cel.id)
+            return call
+
+        target_exten = extra.get('extension')
+        context = extra.get('context')
+        transferee_channel_name = extra.get('transferee_channel_name')
+        transferee_channel_uniqueid = extra.get('transferee_channel_uniqueid')
+
+        try:
+            eventtime_iso = parse_eventtime(cel.eventtime).isoformat() if getattr(cel, 'eventtime', None) else None
+        except Exception:
+            eventtime_iso = None
+
+        transfer_entry = {
+            'cel_id': getattr(cel, 'id', None),
+            'transfer_type': transfer_type,
+            'target_exten': target_exten,
+            'context': context,
+            'transferee_channel_name': transferee_channel_name,
+            'transferee_channel_uniqueid': transferee_channel_uniqueid,
+            'channame': getattr(cel, 'channame', None),
+            'eventtime': eventtime_iso,
+            'extra': extra,
+        }
+
+        try:
+            if hasattr(call, 'transfers'):
+                call.transfers.append(transfer_entry)
+        except Exception:
+            logger.exception('Failed to append transfer entry to call.transfers for cel.id=%s', cel.id)
+
         return call
 
     def interpret_wazo_conference(self, cel, call):
