@@ -73,6 +73,8 @@ class RawCallLog:
         # Optional trunk identifier (e.g. outbound/inbound trunk name)
         self.trunk: str | None = None
         self.schedule_state: dict[str, str] = {}
+        # History of IVR choices detected during CEL interpretation
+        self.ivr_choices: list[dict] = []
 
     @property
     def tenant_uuid(self) -> str:
@@ -122,6 +124,7 @@ class RawCallLog:
             conversation_id=self.conversation_id,
             blocked=self.blocked,
             schedule_state=self.schedule_state,
+            ivr_choices=self.ivr_choices if self.ivr_choices else None,
         )
         result.participants = self.participants
         result.cel_ids = self.cel_ids

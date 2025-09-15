@@ -54,6 +54,9 @@ class ReportsCallLog(Base):
     requested_context = Column(String(255))
     requested_internal_exten = Column(Text)
     requested_internal_context = Column(Text)
+    # History of IVR choices made during the call. Stored as a JSON array of objects
+    # each object can contain keys like id, exten, context, channame, eventtime.
+    ivr_choices = Column(JSON, nullable=True)
     destination_name = Column(String(255))
     destination_exten = Column(String(255))
     destination_internal_exten = Column(Text)

@@ -17,6 +17,10 @@ from xivo.asterisk.line_identity import identity_from_channel
 from xivo_dao.alchemy.cel import CEL
 
 from wazo_call_logd.database.cel_event_type import CELEventType
+
+# Add missing event constant for now
+WAZO_IVR_CHOICE = 'WAZO_IVR_CHOICE'
+
 from .models import ReportsDestination, ReportsRecording
 from wazo_call_logd.exceptions import CELInterpretationError, InvalidCallLogException
 from .raw_call_log import BridgeInfo, RawCallLog
@@ -286,6 +290,8 @@ class CallerCELInterpretor(AbstractCELInterpretor):
             CELEventType.wazo_call_log_requested_internal: (
                 self.interpret_wazo_call_log_requested_internal
             ),
+            # handle IVR choice events (not present in CELEventType enum yet)
+            WAZO_IVR_CHOICE: self.interpret_wazo_ivr_choice,
         }
 
     def interpret_chan_start(self, cel, call):
@@ -491,6 +497,58 @@ class CallerCELInterpretor(AbstractCELInterpretor):
         logger.debug(
             'Identified destination name from WAZO_CONFERENCE(id=%s): %s', name, cel.id
         )
+        return call
+
+    def interpret_wazo_ivr_choice(self, cel, call):
+        """Interpret WAZO_IVR_CHOICE CELGenUserEvent.
+
+        Expected payload in cel.extra is a JSON wrapper produced by extract_cel_extra,
+        with inner 'extra' containing a JSON object like {"id":1,"exten":"3"}.
+        We set requested_exten from that payload (filtered through extension_filter).
+        """
+        extra = extract_cel_extra(cel.extra)
+        if not extra:
+            logger.error(
+                'Cannot interpret WAZO_IVR_CHOICE event(cel.id=%s), missing extra data',
+                cel.id,
+            )
+            return call
+
+        try:
+            inner = extra.get('extra', '')
+            # inner might include surrounding spaces; try to parse as JSON
+            data = json.loads(inner.strip()) if isinstance(inner, str) else {}
+        except Exception:
+            logger.exception('Failed to parse WAZO_IVR_CHOICE payload for cel.id=%s', cel.id)
+            return call
+
+        ivr_exten = data.get('exten')
+        ivr_id = data.get('id')
+        # record IVR choice history on the RawCallLog
+        try:
+            eventtime_iso = parse_eventtime(cel.eventtime).isoformat() if getattr(cel, 'eventtime', None) else None
+        except Exception:
+            eventtime_iso = None
+        ivr_entry = {
+            'id': ivr_id,
+            'exten': str(ivr_exten) if ivr_exten is not None else None,
+            'context': getattr(cel, 'context', None),
+            'channame': getattr(cel, 'channame', None),
+            'eventtime': eventtime_iso,
+        }
+        try:
+            if hasattr(call, 'ivr_choices'):
+                call.ivr_choices.append(ivr_entry)
+        except Exception:
+            logger.exception('Failed to append ivr choice to call.ivr_choices for cel.id=%s', cel.id)
+        if ivr_exten:
+            call.requested_exten = call.extension_filter.filter(str(ivr_exten))
+            logger.debug(
+                'Interpreted WAZO_IVR_CHOICE(id=%s, exten=%s) for cel.id=%s',
+                ivr_id,
+                ivr_exten,
+                cel.id,
+            )
         return call
 
     def interpret_wazo_meeting_name(self, cel, call):
