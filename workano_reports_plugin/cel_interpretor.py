@@ -79,13 +79,13 @@ def parse_key_pair_sequence(text: str) -> list[tuple[str, str]]:
 
 def extract_cel_extra(extra: str | None) -> dict | None:
     if not extra:
-        logger.debug('missing CEL extra')
+        logger.info('missing CEL extra')
         return
 
     try:
         extra = json.loads(extra)
     except json.decoder.JSONDecodeError:
-        logger.debug('invalid CEL extra: %s', repr(extra))
+        logger.info('invalid CEL extra: %s', repr(extra))
         return
 
     return extra
