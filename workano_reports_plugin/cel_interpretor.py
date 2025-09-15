@@ -501,28 +501,27 @@ class CallerCELInterpretor(AbstractCELInterpretor):
         return call
 
     def interpret_wazo_ivr_choice(self, cel, call):
-        """Interpret WAZO_IVR_CHOICE CELGenUserEvent.
-
-        Expected payload in cel.extra is a JSON wrapper produced by extract_cel_extra,
-        with inner 'extra' containing a JSON object like {"id":1,"exten":"3"}.
-        We set requested_exten from that payload (filtered through extension_filter).
-        """
         print('interpretting ivr choices', cel.extra)
-        extra = extract_cel_extra(cel.extra)
-        print('extra', extra)
-        if not extra:
+        # pasrs cel.appdata which has format: "WAZO_IVR_CHOICE, {json}"
+        appdata = getattr(cel, 'appdata', '') or ''
+        if appdata:
+            try:
+                parts = appdata.split(',', 1)
+                if len(parts) == 2:
+                    json_part = parts[1].strip()
+                    data = json.loads(json_part)
+                    logger.info('Recovered IVR choice from appdata for cel.id=%s', cel.id)
+                else:
+                    logger.info('appdata did not contain expected JSON for cel.id=%s: %s', cel.id, appdata)
+            except Exception:
+                logger.exception('Failed to parse IVR choice JSON from cel.appdata for cel.id=%s', cel.id)
+                data = None
+
+        if not data:
             logger.error(
                 'Cannot interpret WAZO_IVR_CHOICE event(cel.id=%s), missing extra data',
                 cel.id,
             )
-            return call
-
-        try:
-            inner = extra.get('extra', '')
-            # inner might include surrounding spaces; try to parse as JSON
-            data = json.loads(inner.strip()) if isinstance(inner, str) else {}
-        except Exception:
-            logger.exception('Failed to parse WAZO_IVR_CHOICE payload for cel.id=%s', cel.id)
             return call
 
         ivr_exten = data.get('exten')
