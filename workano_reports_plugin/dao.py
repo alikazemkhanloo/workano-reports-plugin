@@ -140,13 +140,13 @@ def get_context_numbers(session):
 
 
 @daosession
-def get_schedule_from_outcall(session, tenant_uuid ): 
+def get_schedule_from_outcall(session ): 
     try:
         outcall = session.query(Outcall).first()
-        print('get_schedule_from_outcall', tenant_uuid, outcall)
+        print('get_schedule_from_outcall', outcall)
         if not outcall:
             return None
         return get_schedule_from_path('outcall', outcall.id)
     except Exception:
-        logger.exception('Failed to get schedule for outcall tenant %s', tenant_uuid)
+        logger.exception('Failed to get schedule for outcall',)
         return None
