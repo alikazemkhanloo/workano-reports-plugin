@@ -318,24 +318,18 @@ class CallLogsGenerator:
         trunk = call_log.trunk
         temp_user_exten = call_log.temp_user_exten
         tenant_uuid  = call_log.tenant_uuid
-        print('temp_user_exten and tenant', temp_user_exten, tenant_uuid)
-        print('call_log.destination_details',call_log.destination_details)
         destination_type = next((dd.destination_details_value for dd in call_log.destination_details if dd.destination_details_key =='type'),None) # e.g. 'group', 'queue','user'
-        print('destination_type',destination_type)
         schedule_model = None
         if call_log.direction == 'internal':
             # todo: check extention range to see if it was outcall but redirected within wazo
             context_numbers = get_context_numbers()
-            print('context_numbers', context_numbers)
             in_contextnumbers = check_if_is_in_contextnumbers(context_numbers,call_log.destination_exten)
             if not in_contextnumbers:
                 # it was outcall blocked by schedule
                 schedule_model = get_schedule_from_outcall()
-                print('schedule for outcalls', schedule_model)
             else:
                 # it was an internal call
                 schedule_model = get_schedule_from_exten_tenant(tenant_uuid=tenant_uuid, exten=temp_user_exten)
-                print('schedule for internal users', schedule_model)
                 pass
         elif call_log.direction == 'inbound':
             # First try to get schedule for incall from trunk if available
@@ -348,19 +342,15 @@ class CallLogsGenerator:
                     # If not found, try to get schedule from group_id for groups
                     group_id = next((dd.destination_details_value for dd in call_log.destination_details if dd.destination_details_key =='group_id'),None) # e.g. 'group', 'queue','user'
                     schedule_model = get_schedule_from_path(path='group', pathid=group_id)
-                    print('schedule_model in inbound group', schedule_model)
             if not schedule_model and temp_user_exten and tenant_uuid:
                 # If not found, try to get schedule from temp_user_exten and tenant
-                print('get schedule for user', temp_user_exten, tenant_uuid)
                 schedule_model = get_schedule_from_exten_tenant(tenant_uuid=tenant_uuid, exten=temp_user_exten)
             if not schedule_model:
-                print('schedule mode not found')
+                pass
 
-        print('schedule_model', schedule_model)
         schedule = None
         if schedule_model:
             schedule = get_schedule_mapper(schedule_model)
-        print('schedule', schedule)
 
         if schedule:
             state = schedule.compute_state(date)
