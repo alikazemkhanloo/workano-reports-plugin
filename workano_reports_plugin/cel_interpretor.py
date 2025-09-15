@@ -506,6 +506,7 @@ class CallerCELInterpretor(AbstractCELInterpretor):
         with inner 'extra' containing a JSON object like {"id":1,"exten":"3"}.
         We set requested_exten from that payload (filtered through extension_filter).
         """
+        print('interpretting ivr choices')
         extra = extract_cel_extra(cel.extra)
         if not extra:
             logger.error(
@@ -541,14 +542,7 @@ class CallerCELInterpretor(AbstractCELInterpretor):
                 call.ivr_choices.append(ivr_entry)
         except Exception:
             logger.exception('Failed to append ivr choice to call.ivr_choices for cel.id=%s', cel.id)
-        if ivr_exten:
-            call.requested_exten = call.extension_filter.filter(str(ivr_exten))
-            logger.debug(
-                'Interpreted WAZO_IVR_CHOICE(id=%s, exten=%s) for cel.id=%s',
-                ivr_id,
-                ivr_exten,
-                cel.id,
-            )
+
         return call
 
     def interpret_wazo_meeting_name(self, cel, call):
