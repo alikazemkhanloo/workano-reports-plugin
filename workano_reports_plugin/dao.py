@@ -97,7 +97,7 @@ def get_schedule_from_path(session, path, pathid):
 @daosession
 def get_schedule_from_exten_tenant(session, tenant_uuid, exten):
     try:
-        schedule_path = (
+        schedule_path_query = (
             session.query(SchedulePath)
             .join(
                 Extension,
@@ -109,11 +109,12 @@ def get_schedule_from_exten_tenant(session, tenant_uuid, exten):
             .join(Context, Context.name == Extension.context)
             .filter(
                 Extension.exten == exten,
-                Context.tenant_uuid == tenant_uuid,
                 SchedulePath.path == 'user',  # still required for your case
             )
-            .first()
         )
+        if tenant_uuid:
+            schedule_path_query = schedule_path_query.filter(Context.tenant_uuid == tenant_uuid)        
+        schedule_path = schedule_path_query.first()
         print('schedule_path',schedule_path)
         if not schedule_path:
             return None
