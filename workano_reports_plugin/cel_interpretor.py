@@ -506,7 +506,7 @@ class CallerCELInterpretor(AbstractCELInterpretor):
         with inner 'extra' containing a JSON object like {"id":1,"exten":"3"}.
         We set requested_exten from that payload (filtered through extension_filter).
         """
-        print('interpretting ivr choices')
+        print('interpretting ivr choices', cel.extra)
         extra = extract_cel_extra(cel.extra)
         if not extra:
             logger.error(
