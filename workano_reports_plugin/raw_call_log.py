@@ -193,7 +193,6 @@ class RawCallLog:
                         transferee_line=t.get('transferee_line'),
                         transfer_target_line=t.get('transfer_target_line'),
                         channel2_line=t.get('channel2_line'),
-                        channame=t.get('channame'),
                     )
                 )
             if transfers_models:
