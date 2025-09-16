@@ -297,6 +297,7 @@ class CallerCELInterpretor(AbstractCELInterpretor):
         }
 
     def interpret_chan_start(self, cel, call):
+        call.original_call_log_id = cel.call_log_id
         call.date = parse_eventtime(cel.eventtime)
         call.source_name = cel.cid_name
         call.source_internal_name = cel.cid_name

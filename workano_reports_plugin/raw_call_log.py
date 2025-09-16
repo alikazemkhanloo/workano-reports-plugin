@@ -79,6 +79,7 @@ class RawCallLog:
         self.forwards: list[dict] = []
         # History of transfer events (to be converted to ReportsTransfer rows)
         self.transfers: list[dict] = []
+        self.original_call_log_id: int | None = None
 
     @property
     def tenant_uuid(self) -> str:
@@ -129,6 +130,7 @@ class RawCallLog:
             blocked=self.blocked,
             schedule_state=self.schedule_state,
             ivr_choices=self.ivr_choices if self.ivr_choices else None,
+            original_call_log_id=self.original_call_log_id,
         )
         result.participants = self.participants
         result.cel_ids = self.cel_ids

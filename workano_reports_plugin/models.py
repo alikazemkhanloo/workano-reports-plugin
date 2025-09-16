@@ -69,7 +69,7 @@ class ReportsCallLog(Base):
     user_field = Column(String(255))
     conversation_id = Column(String(255))
     schedule_state = Column(JSON, nullable=True)
-
+    original_call_log_id = Column(Integer, nullable=True)
     recordings = relationship(
         'ReportsRecording',
         order_by='ReportsRecording.start_time',
