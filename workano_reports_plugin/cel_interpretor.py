@@ -529,17 +529,46 @@ class CallerCELInterpretor(AbstractCELInterpretor):
         return call
 
     def interpret_transfer(self, cel, call):
-        """Handle BLINDTRANSFER and ATTENDEDTRANSFER events by recording transfer data."""
+        """Handle BLINDTRANSFER and ATTENDEDTRANSFER events by recording transfer data.
+
+        Parses cel.extra (expected JSON) and stores detailed fields including bridge ids
+        and channel names; also extracts short line identifiers from PJSIP/SIP channel names.
+        """
         transfer_type = 'blind' if cel.eventtype == CELEventType.blind_transfer else 'attended'
         extra = extract_cel_extra(cel.extra)
-        if not extra:
-            logger.debug('Missing extra for transfer event cel.id=%s', cel.id)
+        if not extra or not isinstance(extra, dict):
+            logger.debug('Missing or invalid extra for transfer event cel.id=%s', cel.id)
             return call
 
-        target_exten = extra.get('extension')
+        # Extract known fields from extra payload
+        target_exten = extra.get('extension') or extra.get('transfer_target')
         context = extra.get('context')
-        transferee_channel_name = extra.get('transferee_channel_name')
+        transferee_channel_name = extra.get('transferee_channel_name') or extra.get('transferee_channel')
         transferee_channel_uniqueid = extra.get('transferee_channel_uniqueid')
+        channel2_name = extra.get('channel2_name')
+        channel2_uniqueid = extra.get('channel2_uniqueid')
+        transfer_target_channel_name = extra.get('transfer_target_channel_name')
+        transfer_target_channel_uniqueid = extra.get('transfer_target_channel_uniqueid')
+        bridge1_id = extra.get('bridge1_id') or extra.get('bridge_id')
+        bridge2_id = extra.get('bridge2_id')
+
+        # derive short line names from channel strings like 'PJSIP/8gfq9ytw-00000042'
+        def extract_line(channel_name: str | None) -> str | None:
+            if not channel_name:
+                return None
+            m = TRUNK_REGEX.match(channel_name)
+            if m:
+                return m.group(1)
+            # fallback: try to split on '/' and '-'
+            try:
+                part = channel_name.split('/', 1)[1]
+                return part.split('-', 1)[0]
+            except Exception:
+                return None
+
+        transferee_line = extract_line(transferee_channel_name)
+        transfer_target_line = extract_line(transfer_target_channel_name)
+        channel2_line = extract_line(channel2_name)
 
         try:
             eventtime_iso = parse_eventtime(cel.eventtime).isoformat() if getattr(cel, 'eventtime', None) else None
@@ -553,6 +582,15 @@ class CallerCELInterpretor(AbstractCELInterpretor):
             'context': context,
             'transferee_channel_name': transferee_channel_name,
             'transferee_channel_uniqueid': transferee_channel_uniqueid,
+            'channel2_name': channel2_name,
+            'channel2_uniqueid': channel2_uniqueid,
+            'transfer_target_channel_name': transfer_target_channel_name,
+            'transfer_target_channel_uniqueid': transfer_target_channel_uniqueid,
+            'bridge1_id': bridge1_id,
+            'bridge2_id': bridge2_id,
+            'transferee_line': transferee_line,
+            'transfer_target_line': transfer_target_line,
+            'channel2_line': channel2_line,
             'channame': getattr(cel, 'channame', None),
             'eventtime': eventtime_iso,
             'extra': extra,

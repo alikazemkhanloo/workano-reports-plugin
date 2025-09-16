@@ -383,9 +383,24 @@ class ReportsTransfer(Base):
     transfer_type = Column(String(32))
     target_exten = Column(String(64))
     context = Column(String(255))
+
+    # channel information from extra payload
     transferee_channel_name = Column(String(255))
     transferee_channel_uniqueid = Column(String(255))
-    channame = Column(String(255))
+    channel2_name = Column(String(255))
+    channel2_uniqueid = Column(String(255))
+    transfer_target_channel_name = Column(String(255))
+    transfer_target_channel_uniqueid = Column(String(255))
+
+    # bridge identifiers
+    bridge1_id = Column(String(64))
+    bridge2_id = Column(String(64))
+
+    # extracted short line names (e.g. 8gfq9ytw from PJSIP/8gfq9ytw-00000042)
+    transferee_line = Column(String(128))
+    transfer_target_line = Column(String(128))
+    channel2_line = Column(String(128))
+
     extra = Column(JSON, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=text('now()'))
 
