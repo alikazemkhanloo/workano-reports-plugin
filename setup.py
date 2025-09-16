@@ -19,6 +19,9 @@ setup(
     entry_points={
         'wazo_call_logd.plugins': [
             'workano_reports_plugin = workano_reports_plugin.plugin:Plugin'
+        ],
+        'console_scripts': [
+            'workano-queue-log=workano_reports_plugin.queue_log.main:main',
         ]
     }
 )
