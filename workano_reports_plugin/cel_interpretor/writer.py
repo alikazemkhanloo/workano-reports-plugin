@@ -3,7 +3,7 @@
 from wazo_call_logd.database.queries import DAO
 from xivo_dao.helpers.db_manager import daosession
 
-from workano_reports_plugin.models import ReportsCallLog
+from .models import ReportsCallLog
 
 @daosession
 def delete_from_list(session, call_log_ids):
