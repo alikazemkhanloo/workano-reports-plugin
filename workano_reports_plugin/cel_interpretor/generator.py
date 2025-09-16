@@ -13,8 +13,8 @@ from wazo_confd_client import Client as ConfdClient
 from xivo.asterisk.protocol_interface import protocol_interface_from_channel
 from xivo_dao.alchemy.cel import CEL
 
-from workano_reports_plugin.dao import get_context_numbers, get_schedule_from_extension, get_schedule_from_outcall, get_schedule_from_path, get_schedule_from_exten_tenant
-from workano_reports_plugin.schedule_utils import get_schedule_mapper
+from .dao import get_context_numbers, get_schedule_from_extension, get_schedule_from_outcall, get_schedule_from_path, get_schedule_from_exten_tenant
+from .schedule_utils import get_schedule_mapper
 
 from .cel_interpretor import AbstractCELInterpretor
 from wazo_call_logd.database.cel_event_type import CELEventType

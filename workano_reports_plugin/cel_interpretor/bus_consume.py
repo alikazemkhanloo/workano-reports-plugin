@@ -1,17 +1,13 @@
 import logging
 import time
-import re
 
-from workano_reports_plugin.cel_interpretor import default_interpretors
-from workano_reports_plugin.dao import get_trunk_name_number_map
-from workano_reports_plugin.generator import CallLogsGenerator
+from .cel_interpretor import default_interpretors
+from .dao import get_trunk_name_number_map
+from .generator import CallLogsGenerator
 from wazo_auth_client import Client as AuthClient
 from wazo_confd_client import Client as ConfdClient
-from xivo.token_renewer import TokenRenewer
-from xivo_dao.helpers.db_manager import daosession
-from xivo_dao.alchemy.trunkfeatures import TrunkFeatures
-from workano_reports_plugin.manager import CallLogsManager
-from workano_reports_plugin.writer import CallLogsWriter
+from .manager import CallLogsManager
+from .writer import CallLogsWriter
 
 logger = logging.getLogger(__name__)
 

@@ -6,11 +6,11 @@ from __future__ import annotations
 import logging
 from datetime import datetime, timedelta
 
-from workano_reports_plugin.generator import CallLogsGenerator
+from .generator import CallLogsGenerator
 
 from wazo_call_logd.database.queries import DAO
 
-from workano_reports_plugin.writer import CallLogsWriter
+from .writer import CallLogsWriter
 
 logger = logging.getLogger(__name__)
 

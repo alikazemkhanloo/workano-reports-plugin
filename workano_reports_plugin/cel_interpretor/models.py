@@ -16,7 +16,7 @@ from sqlalchemy.schema import CheckConstraint, Column, ForeignKey, Index
 from sqlalchemy.sql import and_, case, select, text
 from sqlalchemy.types import Boolean, DateTime, Enum, Integer, String, Text, JSON
 from sqlalchemy_utils import UUIDType, generic_repr
-from .db import Base
+from ..db import Base
 
 
 @generic_repr

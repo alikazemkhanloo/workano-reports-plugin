@@ -1,6 +1,6 @@
 import logging
 
-from workano_reports_plugin.bus_consume import ReportsBusEventHandler
+from workano_reports_plugin.cel_interpretor.bus_consume import ReportsBusEventHandler
 from workano_reports_plugin.db import init_db
 from .services import build_otp_request_service
 from .resource import  ReportsResource
