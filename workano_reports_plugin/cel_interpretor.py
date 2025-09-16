@@ -517,7 +517,6 @@ class CallerCELInterpretor(AbstractCELInterpretor):
             'name': name,
             'channame': getattr(cel, 'channame', None),
             'eventtime': eventtime_iso,
-            'extra': kv,
         }
 
         try:
@@ -593,7 +592,6 @@ class CallerCELInterpretor(AbstractCELInterpretor):
             'channel2_line': channel2_line,
             'channame': getattr(cel, 'channame', None),
             'eventtime': eventtime_iso,
-            'extra': extra,
         }
 
         try:

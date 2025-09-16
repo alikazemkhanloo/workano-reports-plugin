@@ -155,7 +155,6 @@ class RawCallLog:
                         context=f.get('context'),
                         name=f.get('name'),
                         channame=f.get('channame'),
-                        extra=f.get('extra'),
                     )
                 )
             if forwards_models:
@@ -185,8 +184,16 @@ class RawCallLog:
                         context=t.get('context'),
                         transferee_channel_name=t.get('transferee_channel_name'),
                         transferee_channel_uniqueid=t.get('transferee_channel_uniqueid'),
+                        channel2_name=t.get('channel2_name'),
+                        channel2_uniqueid=t.get('channel2_uniqueid'),
+                        transfer_target_channel_name=t.get('transfer_target_channel_name'),
+                        transfer_target_channel_uniqueid=t.get('transfer_target_channel_uniqueid'),
+                        bridge1_id=t.get('bridge1_id'),
+                        bridge2_id=t.get('bridge2_id'),
+                        transferee_line=t.get('transferee_line'),
+                        transfer_target_line=t.get('transfer_target_line'),
+                        channel2_line=t.get('channel2_line'),
                         channame=t.get('channame'),
-                        extra=t.get('extra'),
                     )
                 )
             if transfers_models:

@@ -348,7 +348,6 @@ class ReportsForward(Base):
     context = Column(String(255))
     name = Column(String(255))
     channame = Column(String(255))
-    extra = Column(JSON, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=text('now()'))
 
     call_log = relationship('ReportsCallLog', uselist=False)
@@ -401,7 +400,6 @@ class ReportsTransfer(Base):
     transfer_target_line = Column(String(128))
     channel2_line = Column(String(128))
 
-    extra = Column(JSON, nullable=True)
     created_at = Column(DateTime(timezone=True), server_default=text('now()'))
 
     call_log = relationship('ReportsCallLog', uselist=False)
