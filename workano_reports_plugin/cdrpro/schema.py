@@ -19,6 +19,39 @@ class QueueFeaturesSchema(BaseSchema):
 
 
     
+
+class ForwardSchema(BaseSchema):
+    id = fields.Integer()
+    cel_id = fields.Integer()
+    event_time = fields.DateTime()
+    num = fields.String()
+    context = fields.String()
+    name = fields.String()
+    channame = fields.String()
+    created_at = fields.DateTime()
+
+
+
+class TransferSchema(BaseSchema):
+    id = fields.Integer()
+    cel_id = fields.Integer()
+    event_time = fields.DateTime()
+    transfer_type = fields.String()
+    target_exten = fields.String()
+    context = fields.String()
+    transferee_channel_name = fields.String()
+    transferee_channel_uniqueid = fields.String()
+    channel2_name = fields.String()
+    channel2_uniqueid = fields.String()
+    transfer_target_channel_name = fields.String()
+    transfer_target_channel_uniqueid = fields.String()
+    bridge1_id = fields.String()
+    bridge2_id = fields.String()
+    transferee_line = fields.String()
+    transfer_target_line = fields.String()
+    channel2_line = fields.String()
+    created_at = fields.DateTime()
+
 class CDRSchema(BaseSchema):
     id = fields.Integer()
     tenant_uuid = fields.UUID()
@@ -59,6 +92,17 @@ class CDRSchema(BaseSchema):
     recordings = fields.Nested(
         'RecordingSchema', many=True, dump_default=[], exclude=('conversation_id',)
     )
+    blocked = fields.Boolean()
+    trunk = fields.String()
+    user_field = fields.String()
+    schedule_state = fields.Dict()
+    original_call_log_id = fields.Integer()
+    ivr_choices = fields.List(fields.Dict(), dump_default=[])
+    source_line_identity = fields.String()
+    destination_line_identity = fields.String()
+    transfers = fields.Nested(TransferSchema, many=True, dump_default=[])
+    forwards = fields.Nested(ForwardSchema, many=True, dump_default=[])
+
 
     @pre_dump
     def _compute_fields(self, data, **kwargs):
