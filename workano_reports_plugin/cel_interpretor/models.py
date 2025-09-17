@@ -12,7 +12,8 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.ext.hybrid import hybrid_property
 from sqlalchemy.ext.mutable import MutableList
 from sqlalchemy.orm import relationship
-from sqlalchemy.schema import CheckConstraint, Column, ForeignKey, Index
+from sqlalchemy.schema import CheckConstraint, Column, ForeignKey, Index, PrimaryKeyConstraint
+
 from sqlalchemy.sql import and_, case, select, text
 from sqlalchemy.types import Boolean, DateTime, Enum, Integer, String, Text, JSON
 from sqlalchemy_utils import UUIDType, generic_repr
@@ -429,7 +430,9 @@ class ReportsTransfer(Base):
 
 class LineFeatures(Base):
     __tablename__ = 'linefeatures'
-    
+    __table_args__ = (
+        PrimaryKeyConstraint('id'),
+    )
 
     id = Column(Integer)
     name = Column(String(128))
