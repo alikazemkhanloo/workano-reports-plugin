@@ -54,7 +54,15 @@ class CDRListResource(AuthResource):
             calllog_data = cdr_schema.dump(calllog)
             survey_data = survey_schema.dump(survey) if survey else None
             call_info_data = callinfo_schema.dump(callinfo) if callinfo else None
-            queue_data = QueueFeaturesSchema().dump(queuefeature) if queuefeature else None
+            queue_data = None
+            if queuefeature:
+                queue_data = {
+                    'id': queuefeature.id,
+                    'tenant_uuid': queuefeature.tenant_uuid,
+                    'queue_id': queuefeature.queue_id,
+                    'name': queuefeature.name,
+                    'displayname': queuefeature.displayname,
+                }
 
             if call_info_data:
                 tag_ids = call_info_data.pop('tag_ids', '')
@@ -134,7 +142,11 @@ class CDRListResource(AuthResource):
                 keys['call_direction']: cdr['call_direction'],
                 keys['tags']: ', '.join(tag['name'] for tag in (cdr['call_info'].get('tags', []))) if cdr.get('call_info') else None,
                 keys['rate']: cdr['survey'].get('rate', []) if cdr.get('survey') else None,
-                keys['queue']: cdr.get('queue', {}).get('queue_id') if cdr.get('queue') else None,
+                # prefer displayname, fallback to queue_id
+                keys['queue']: (
+                    cdr.get('queue', {}).get('displayname')
+                    or cdr.get('queue', {}).get('queue_id')
+                ) if cdr.get('queue') else None,
             }
             for cdr in cdr_data
         ]

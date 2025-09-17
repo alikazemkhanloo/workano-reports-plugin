@@ -177,10 +177,11 @@ class SurveyPersistor(CriteriaBuilderMixin, BasePersistor):
             else:
                 query = query.filter(~CallLog.transfers.any())
 
-        # schedule_state filter: treat missing/null status as 'opened'
+        # schedule_state filter: treat missing/null state as 'opened'
         schedule_state = params.get('schedule_state')
         if schedule_state is not None:
-            # Use COALESCE on the JSON 'status' field to default to 'opened'
+            # Use COALESCE on the JSON 'state' field to default to 'opened'
+            # use .as_string() (preferred over deprecated .astext)
             state_expr = func.coalesce(CallLog.schedule_state['state'].as_string(), 'opened')
             if schedule_state == 'opened':
                 query = query.filter(state_expr == 'opened')
@@ -216,6 +217,7 @@ class SurveyPersistor(CriteriaBuilderMixin, BasePersistor):
                 XQueueFeatures,
                 cast(XQueueFeatures.id, sa.String) == Extension.typeval,
             )
+            # only use QueueFeatures for name/displayname mapping
         )
         distinct_ = params.get('distinct')
         if distinct_ == 'peer_exten':
