@@ -15,9 +15,6 @@ class QueueFeaturesSchema(BaseSchema):
     tenant_uuid = fields.String(dump_only=True)
     name = fields.String(dump_only=True)
     displayname = fields.String(dump_only=True)
-    queue_id = fields.String(dump_only=False)
-    play_agentnumber_enable = fields.String(dump_only=False)
-    queue_survey_enable = fields.String(dump_only=False)
 
 
 

@@ -10,7 +10,7 @@ from flask_restful import Resource
 from wazo_confd.auth import required_acl
 from wazo_confd.helpers.restful import ItemResource, ListResource
 
-from .schema import CDRListRequestSchema, QueueFeaturesSchema, SummarySchema
+from .schema import CDRListRequestSchema, SummarySchema
 import json
 from .schema import CDRSchema
 from wazo_confd_survey.survey.schema import SurveySchema
@@ -59,7 +59,6 @@ class CDRListResource(AuthResource):
                 queue_data = {
                     'id': queuefeature.id,
                     'tenant_uuid': queuefeature.tenant_uuid,
-                    'queue_id': queuefeature.queue_id,
                     'name': queuefeature.name,
                     'displayname': queuefeature.displayname,
                 }
