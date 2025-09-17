@@ -423,3 +423,14 @@ class ReportsTransfer(Base):
         lazy="joined",
         viewonly=True
     )
+
+
+
+
+class LineFeatures(Base):
+    __tablename__ = 'linefeatures'
+    
+
+    id = Column(Integer)
+    name = Column(String(128))
+    number = Column(String(40))
