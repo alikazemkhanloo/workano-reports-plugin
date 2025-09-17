@@ -179,7 +179,7 @@ class SurveyPersistor(CriteriaBuilderMixin, BasePersistor):
         schedule_state = params.get('schedule_state')
         if schedule_state is not None:
             # Use COALESCE on the JSON 'status' field to default to 'opened'
-            status_expr = func.coalesce(CallLog.schedule_state['status'].astext, 'opened')
+            status_expr = func.coalesce(CallLog.schedule_state['status'].as_string(), 'opened')
             if schedule_state == 'opened':
                 query = query.filter(status_expr == 'opened')
             else:
