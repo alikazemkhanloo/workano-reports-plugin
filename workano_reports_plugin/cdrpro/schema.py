@@ -6,7 +6,6 @@ from wazo_call_logd.plugins.cdr.schemas import DestinationDetailsField, BaseDest
 from xivo.mallow.validate import Length, OneOf, Range, Regexp
 from wazo_confd_call_note.tag.schema import TagSchema
 from workano_reports_plugin.cel_interpretor.models import LineFeatures
-from wazo_confd.plugins.line.schema import LineSchema
 
 NUMBER_REGEX = r'^_?[0-9]+_?$'
 CONVERSATION_ID_REGEX = r'^[0-9]+\.[0-9]+$'
@@ -19,6 +18,12 @@ class QueueFeaturesSchema(BaseSchema):
     queue_survey_enable = fields.String(dump_only=False)
 
 
+
+
+class LineSchema(BaseSchema):
+    id = fields.Integer(dump_only=True)
+    name = fields.String(dump_only=True)
+    number = fields.String(dump_only=True)
 
     
 
