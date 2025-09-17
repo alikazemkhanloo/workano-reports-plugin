@@ -50,10 +50,11 @@ class CDRListResource(AuthResource):
         callinfo_schema = CallInfoSchema()
         append_output = output.append  # Local binding for faster access
 
-        for calllog, survey, callinfo in cdr_list.all():
+        for calllog, survey, callinfo, queuefeature in cdr_list.all():
             calllog_data = cdr_schema.dump(calllog)
             survey_data = survey_schema.dump(survey) if survey else None
             call_info_data = callinfo_schema.dump(callinfo) if callinfo else None
+            queue_data = QueueFeaturesSchema().dump(queuefeature) if queuefeature else None
 
             if call_info_data:
                 tag_ids = call_info_data.pop('tag_ids', '')
@@ -64,6 +65,7 @@ class CDRListResource(AuthResource):
                 **calllog_data,
                 'survey': survey_data,
                 'call_info': call_info_data,
+                'queue': queue_data,
             })
         if params.get('format') == 'csv':
             mapped_output = self.remap_cdr_data(output, language=params['language'])
@@ -92,6 +94,7 @@ class CDRListResource(AuthResource):
             'call_direction': 'نوع',
             'tags': 'برچسب‌ها',
             'rate': 'امتیاز کاربر',
+            'queue': 'صف',
         }
         en_keys = {
             'id':'ID',
@@ -107,6 +110,7 @@ class CDRListResource(AuthResource):
             'call_direction':'Call Direction',
             'tags':'Tags',
             'rate':'Rate',
+            'queue': 'Queue',
         }
         if language == 'fa':
             return fa_keys
@@ -130,6 +134,7 @@ class CDRListResource(AuthResource):
                 keys['call_direction']: cdr['call_direction'],
                 keys['tags']: ', '.join(tag['name'] for tag in (cdr['call_info'].get('tags', []))) if cdr.get('call_info') else None,
                 keys['rate']: cdr['survey'].get('rate', []) if cdr.get('survey') else None,
+                keys['queue']: cdr.get('queue', {}).get('queue_id') if cdr.get('queue') else None,
             }
             for cdr in cdr_data
         ]

@@ -151,6 +151,7 @@ class CDRListingBase(Schema):
     from_id = fields.Integer(
         validate=Range(min=0), attribute='start_id', load_default=None
     )
+    queue_id = fields.String(load_default=None)
     recurse = fields.Boolean(load_default=False)
 
     @pre_load

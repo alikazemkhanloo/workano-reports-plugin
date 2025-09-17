@@ -12,6 +12,8 @@ from sqlalchemy import and_, distinct, func, sql, cast, or_, case, Integer
 from sqlalchemy.orm import Query, joinedload, selectinload, subqueryload
 from sqlalchemy.dialects.postgresql import ARRAY, UUID
 from xivo_dao.alchemy.userfeatures import UserFeatures as User
+from xivo_dao.alchemy.extension import Extension
+from xivo_dao.alchemy.queuefeatures import QueueFeatures as XQueueFeatures
 
 class SurveyPersistor(CriteriaBuilderMixin, BasePersistor):
     _search_table = SurveyModel
@@ -185,17 +187,35 @@ class SurveyPersistor(CriteriaBuilderMixin, BasePersistor):
             else:
                 query = query.filter(state_expr == 'closed')
 
+        # queuefeature_id filter: only include CDRs where requested_internal_exten maps to this QueueFeatures id
+        queuefeature_id = params.get('queuefeature_id')
+        if queuefeature_id is not None:
+            query = query.filter(XQueueFeatures.id == int(queuefeature_id))
+
         if rating := params.get('rating'):
             query = query.filter(SurveyModel.rate == str(rating))
 
         return query
     
     def get_cdr(self, tenant_uuid, params):
+        # also try to map requested_internal_exten -> Extension(type='queue') -> QueueFeatures
         query = (
-            self.session.query(CallLog, SurveyModel, CallInfoModel)
+            self.session.query(CallLog, SurveyModel, CallInfoModel, XQueueFeatures)
             .filter(CallLog.tenant_uuid == tenant_uuid)
             .outerjoin(SurveyModel, SurveyModel.linked_id == CallLog.conversation_id)
             .outerjoin(CallInfoModel, CallInfoModel.cdr_id == CallLog.id)
+            .outerjoin(
+                Extension,
+                and_(
+                    Extension.exten == CallLog.requested_internal_exten,
+                    Extension.context == CallLog.requested_internal_context,
+                    Extension.type == 'queue',
+                ),
+            )
+            .outerjoin(
+                XQueueFeatures,
+                cast(XQueueFeatures.id, sa.String) == Extension.typeval,
+            )
         )
         distinct_ = params.get('distinct')
         if distinct_ == 'peer_exten':
