@@ -175,6 +175,16 @@ class SurveyPersistor(CriteriaBuilderMixin, BasePersistor):
             else:
                 query = query.filter(~CallLog.transfers.any())
 
+        # schedule_state filter: treat missing/null status as 'opened'
+        schedule_state = params.get('schedule_state')
+        if schedule_state is not None:
+            # Use COALESCE on the JSON 'status' field to default to 'opened'
+            status_expr = func.coalesce(CallLog.schedule_state['status'].astext, 'opened')
+            if schedule_state == 'opened':
+                query = query.filter(status_expr == 'opened')
+            else:
+                query = query.filter(status_expr == 'closed')
+
         if rating := params.get('rating'):
             query = query.filter(SurveyModel.rate == str(rating))
 

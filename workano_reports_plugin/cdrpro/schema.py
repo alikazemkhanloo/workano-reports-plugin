@@ -190,6 +190,10 @@ class CDRListRequestSchema(CDRListingBase):
     has_voicemail = fields.Boolean(load_default=None)
     has_forward = fields.Boolean(load_default=None)
     has_transfer = fields.Boolean(load_default=None)
+    schedule_state = fields.String(
+        validate=OneOf(['opened', 'closed']),
+        load_default=None,
+    )
 
     @post_load
     def map_order_field(self, in_data, **kwargs):
