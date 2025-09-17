@@ -12,7 +12,7 @@ from wazo_confd.helpers.restful import ItemResource, ListResource
 
 from .schema import CDRListRequestSchema, QueueFeaturesSchema, SummarySchema
 import json
-from wazo_call_logd.plugins.cdr.schemas import CDRSchema
+from .schema import CDRSchema
 from wazo_confd_survey.survey.schema import SurveySchema
 from wazo_confd_call_note.call_info.schema import CallInfoSchema
 from wazo_confd_call_note.tag.schema import TagSchema
