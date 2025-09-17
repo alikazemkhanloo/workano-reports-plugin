@@ -16,6 +16,7 @@ from sqlalchemy.schema import CheckConstraint, Column, ForeignKey, Index
 from sqlalchemy.sql import and_, case, select, text
 from sqlalchemy.types import Boolean, DateTime, Enum, Integer, String, Text, JSON
 from sqlalchemy_utils import UUIDType, generic_repr
+from xivo_dao.alchemy.linefeatures import LineFeatures
 from ..db import Base
 
 
@@ -411,12 +412,12 @@ class ReportsTransfer(Base):
 
 
     transfer_target_line_feature = relationship(
-        "LineFeature",
-        primaryjoin="ReportsTransfer.transfer_target_line == foreign(LineFeature.name)",
+        LineFeatures,
+        primaryjoin="ReportsTransfer.transfer_target_line == foreign(LineFeatures.name)",
         lazy="joined"
     )
     channel2_line_feature =  relationship(
-        "LineFeature",
-        primaryjoin="ReportsTransfer.channel2_line == foreign(LineFeature.name)",
+        LineFeatures,
+        primaryjoin="ReportsTransfer.channel2_line == foreign(LineFeatures.name)",
         lazy="joined"
     )
