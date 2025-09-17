@@ -5,6 +5,8 @@ from wazo_confd.helpers.mallow import BaseSchema
 from wazo_call_logd.plugins.cdr.schemas import DestinationDetailsField, BaseDestinationDetailsSchema
 from xivo.mallow.validate import Length, OneOf, Range, Regexp
 from wazo_confd_call_note.tag.schema import TagSchema
+from workano_reports_plugin.cel_interpretor.models import LineFeatures
+from wazo_confd.plugins.line.schema import LineSchema
 
 NUMBER_REGEX = r'^_?[0-9]+_?$'
 CONVERSATION_ID_REGEX = r'^[0-9]+\.[0-9]+$'
@@ -51,8 +53,12 @@ class TransferSchema(BaseSchema):
     transfer_target_line = fields.String()
     channel2_line = fields.String()
     created_at = fields.DateTime()
-    transfer_target_line_feature= fields.String()
-    channel2_line_feature= fields.String()
+    transfer_target_line_feature= fields.Nested(
+        LineSchema, many=True, include=['name', 'number']
+    )
+    channel2_line_feature= fields.Nested(
+        LineSchema, many=True, include=['name', 'number']
+    )
 class CDRSchema(BaseSchema):
     id = fields.Integer()
     tenant_uuid = fields.UUID()
