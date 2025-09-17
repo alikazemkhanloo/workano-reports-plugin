@@ -165,7 +165,8 @@ class CDRListingBase(Schema):
 
 
 class CDRListRequestSchema(CDRListingBase):
-    direction = fields.String(validate=OneOf(['asc', 'desc']), load_default='desc')
+    direction = fields.String(validate=OneOf(['asc', 'desc']), load_default='desc'
+    )
     order = fields.String(
         validate=OneOf(set(CDRSchema().fields) - {'end', 'tags', 'recordings'}),
         load_default='start',
@@ -175,7 +176,8 @@ class CDRListRequestSchema(CDRListingBase):
     distinct = fields.String(validate=OneOf(['peer_exten']), load_default=None)
     recorded = fields.Boolean(load_default=None)
     format = fields.String(validate=OneOf(['csv', 'json']), load_default=None)
-    language = fields.String(validate=OneOf(['fa','en']), load_default='fa')
+    language = fields.String(validate=OneOf(['fa','en']), load_default='fa'
+    )
     conversation_id = fields.String(
         validate=Regexp(
             CONVERSATION_ID_REGEX, error='not a valid conversation identifier'
@@ -186,6 +188,8 @@ class CDRListRequestSchema(CDRListingBase):
     answered = fields.Boolean(load_default=None)
     rating = fields.Integer(validate=Range(min=1, max=5), load_default=None)
     has_voicemail = fields.Boolean(load_default=None)
+    has_forward = fields.Boolean(load_default=None)
+    has_transfer = fields.Boolean(load_default=None)
 
     @post_load
     def map_order_field(self, in_data, **kwargs):

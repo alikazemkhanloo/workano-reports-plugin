@@ -161,6 +161,20 @@ class SurveyPersistor(CriteriaBuilderMixin, BasePersistor):
             elif (has_voicemail == False):
                 query = query.filter(SurveyModel.voicemail_id == None)
 
+        has_forward = params.get('has_forward')
+        if (has_forward is not None):
+            if has_forward == True:
+                query = query.filter(CallLog.forwards.any())
+            else:
+                query = query.filter(~CallLog.forwards.any())
+
+        has_transfer = params.get('has_transfer')
+        if (has_transfer is not None):
+            if has_transfer == True:
+                query = query.filter(CallLog.transfers.any())
+            else:
+                query = query.filter(~CallLog.transfers.any())
+
         if rating := params.get('rating'):
             query = query.filter(SurveyModel.rate == str(rating))
 
