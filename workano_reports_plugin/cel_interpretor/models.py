@@ -416,13 +416,15 @@ class ReportsTransfer(Base):
         "LineFeatures",
         primaryjoin="ReportsTransfer.transfer_target_line == foreign(LineFeatures.name)",
         lazy="joined",
-        viewonly=True
+        viewonly=True,
+        uselist=False,
     )
     channel2_line_feature =  relationship(
         "LineFeatures",
         primaryjoin="ReportsTransfer.channel2_line == foreign(LineFeatures.name)",
         lazy="joined",
-        viewonly=True
+        viewonly=True,
+        uselist=False,
     )
 
 

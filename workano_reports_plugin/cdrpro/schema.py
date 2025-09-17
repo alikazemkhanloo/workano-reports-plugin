@@ -59,10 +59,10 @@ class TransferSchema(BaseSchema):
     channel2_line = fields.String()
     created_at = fields.DateTime()
     transfer_target_line_feature= fields.Nested(
-        LineSchema, many=True, include=['name', 'number']
+        LineSchema
     )
     channel2_line_feature= fields.Nested(
-        LineSchema, many=True, include=['name', 'number']
+        LineSchema
     )
 class CDRSchema(BaseSchema):
     id = fields.Integer()
