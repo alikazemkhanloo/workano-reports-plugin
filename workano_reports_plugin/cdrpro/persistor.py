@@ -3,7 +3,6 @@ from xivo_dao.helpers.persistor import BasePersistor
 from xivo_dao.resources.utils.search import CriteriaBuilderMixin
 from datetime import date, datetime, timedelta
 from sqlalchemy.types import DateTime
-# from wazo_call_logd.database.models import CallLog, CallLogParticipant
 from ..cel_interpretor.models import ReportsCallLog as CallLog, ReportsCallLogParticipant as CallLogParticipant
 from wazo_confd_survey.survey.model import SurveyModel
 from wazo_confd_call_note.call_info.model import CallInfoModel
@@ -195,6 +194,8 @@ class SurveyPersistor(CriteriaBuilderMixin, BasePersistor):
             selectinload('recordings.call_log'),
             subqueryload('source_participant'),
             subqueryload('destination_participant'),
+            selectinload(CallLog.forwards),
+            selectinload(CallLog.transfers),
         )
 
         count = query.count()
