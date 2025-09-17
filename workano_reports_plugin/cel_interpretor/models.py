@@ -409,3 +409,14 @@ class ReportsTransfer(Base):
         Index('plugin_reports_call_log_transfer__idx__event_time', 'event_time'),
     )
 
+
+    transfer_target_line_feature = relationship(
+        "LineFeature",
+        primaryjoin="ReportsTransfer.transfer_target_line == foreign(LineFeature.name)",
+        lazy="joined"
+    )
+    channel2_line_feature =  relationship(
+        "LineFeature",
+        primaryjoin="ReportsTransfer.channel2_line == foreign(LineFeature.name)",
+        lazy="joined"
+    )
