@@ -51,7 +51,8 @@ class TransferSchema(BaseSchema):
     transfer_target_line = fields.String()
     channel2_line = fields.String()
     created_at = fields.DateTime()
-
+    transfer_target_line_feature= fields.String()
+    channel2_line_feature= fields.String()
 class CDRSchema(BaseSchema):
     id = fields.Integer()
     tenant_uuid = fields.UUID()
